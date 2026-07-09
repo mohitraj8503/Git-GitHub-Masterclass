@@ -1,0 +1,17 @@
+[
+  {
+    "id": "1783532434088",
+    "name": "Mohit Raj Test",
+    "enrollmentNumber": "AJU/250609",
+    "email": "mohittest@aju.edu.in",
+    "phoneNumber": "7654212171",
+    "branch": "BCA",
+    "yearOfStudy": "3rd Year",
+    "gitExperience": "Never used it",
+    "hasLaptop": "Yes, I'll bring my own laptop",
+    "hasGithubAccount": "Yes",
+    "availableAllDays": "Yes, fully available",
+    "agreeCodeOfConduct": true,
+    "registeredAt": "2026-07-08T17:59:00.924Z"
+  }
+]

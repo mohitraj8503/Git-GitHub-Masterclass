@@ -1,0 +1,19 @@
+<svg width="145" height="44" viewBox="0 0 145 44" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .logo-line {
+      font-family: 'Anton', 'Arial Black', sans-serif;
+      text-transform: uppercase;
+      fill: #151304;
+    }
+    .line1 {
+      font-size: 18px;
+      letter-spacing: 0.2px;
+    }
+    .line2 {
+      font-size: 18px;
+      letter-spacing: 0.2px;
+    }
+  </style>
+  <text x="0" y="17" class="logo-line line1">GIT &amp; GITHUB</text>
+  <text x="0" y="38" class="logo-line line2">MASTERCLASS</text>
+</svg>

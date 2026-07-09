@@ -1,0 +1,33 @@
+{
+  "name": "github-master-class",
+  "version": "1.0.0",
+  "description": "This is a clean, modern, fully static landing page for the **7-Day Hands-On Git & GitHub Masterclass** organized by the **Microsoft Learn Student Ambassador** program at **Arka Jain University**.",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.1",
+    "next": "^16.2.10",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "htmltojsx": "^0.3.0",
+    "playwright": "^1.61.1",
+    "typescript": "^5.9.3"
+  }
+}
