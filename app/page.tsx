@@ -9,10 +9,12 @@ import Mentors from "@/components/Mentors";
 import FAQAccordion from "@/components/FAQAccordion";
 import ContactSection from "@/components/ContactSection";
 import Footer from "@/components/Footer";
+import AutoZoom from "@/components/AutoZoom";
 
 export default function Home() {
   return (
     <>
+      <AutoZoom />
       <main className="hero">
         <Navbar />
         <Hero />

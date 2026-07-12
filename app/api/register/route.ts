@@ -3,6 +3,8 @@ import fs from "fs";
 import path from "path";
 import { supabaseAdmin } from "@/lib/supabaseServer";
 
+export const dynamic = "force-dynamic";
+
 const DATA_DIR = path.join(process.cwd(), "data");
 const FILE_PATH = path.join(DATA_DIR, "registrations.json");
 
@@ -56,40 +58,10 @@ export async function GET() {
         .order("registered_at", { ascending: false });
 
       if (!regsErr && regs) {
-        // 2. Fetch task completions
-        const { data: completions } = await supabaseAdmin
-          .from("task_completions")
-          .select("enrollment_number, task_id");
-
-        // 3. Fetch manual awards
-        const { data: awards } = await supabaseAdmin
-          .from("xp_awards")
-          .select("student_id, amount");
-
-        // Map task completions
-        const completionsMap: Record<string, number> = {};
-        (completions || []).forEach((c: any) => {
-          const key = (c.enrollment_number || "").trim().toUpperCase();
-          const reward = TASK_XP_REWARDS[c.task_id] || 0;
-          completionsMap[key] = (completionsMap[key] || 0) + reward;
-        });
-
-        // Map manual awards
-        const awardsMap: Record<string, number> = {};
-        (awards || []).forEach((a: any) => {
-          const key = a.student_id;
-          awardsMap[key] = (awardsMap[key] || 0) + (a.amount || 0);
-        });
-
-        // Compute dynamic total_xp
         const enrichedRegs = regs.map((r: any) => {
-          const keyComp = (r.enrollment_number || "").trim().toUpperCase();
-          const keyAward = r.id;
-          const compXp = completionsMap[keyComp] || 0;
-          const awardXp = awardsMap[keyAward] || 0;
           return {
             ...r,
-            total_xp: compXp + awardXp
+            total_xp: Number(r.total_xp || 0)
           };
         });
 

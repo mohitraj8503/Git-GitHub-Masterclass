@@ -87,6 +87,8 @@ export default function AdminDashboardPage() {
   const [exporting, setExporting] = useState<boolean>(false);
   const [analyticsSearch, setAnalyticsSearch] = useState<string>("");
   const [analyticsSort, setAnalyticsSort] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
+  const [selectedAnalyticsDay, setSelectedAnalyticsDay] = useState<number | null>(null);
+  const [updatingManualAtt, setUpdatingManualAtt] = useState<string | null>(null);
   const prevWindowRef = useRef<any>(null);
   
   // Leaderboard enhancements
@@ -135,6 +137,10 @@ export default function AdminDashboardPage() {
   const [gradeMarks, setGradeMarks] = useState("");
   const [gradeFeedback, setGradeFeedback] = useState("");
   const [grading, setGrading] = useState(false);
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState<string>("");
+  const [gradingSubmission, setGradingSubmission] = useState<any>(null);
+  const [manualBonusXp, setManualBonusXp] = useState<string>("0");
+  const [exportingCsv, setExportingCsv] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -599,6 +605,33 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleToggleManualAttendance = async (enrollmentNumber: string, day: number, currentlyPresent: boolean) => {
+    setUpdatingManualAtt(enrollmentNumber);
+    try {
+      const res = await fetch("/api/admin/manual-attendance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enrollmentNumber,
+          day,
+          present: !currentlyPresent
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("success", `Successfully marked ${!currentlyPresent ? 'Present' : 'Absent'}!`);
+        // Reload all data so dashboard and reports update
+        loadData();
+      } else {
+        showToast("error", data.error || "Failed to update attendance");
+      }
+    } catch (err: any) {
+      showToast("error", err.message || "Failed to update attendance");
+    } finally {
+      setUpdatingManualAtt(null);
+    }
+  };
+
   const loadXpHistory = async (student: any) => {
     setHistoryStudent(student);
     setLoadingHistory(true);
@@ -715,32 +748,71 @@ export default function AdminDashboardPage() {
       // Title Row
       sheet1.mergeCells("A1:E1");
       const titleCell = sheet1.getCell("A1");
-      titleCell.value = "Git & GitHub Masterclass — Attendance Summary Report";
+      titleCell.value = "Git & GitHub Masterclass — Executive Attendance Report";
       titleCell.font = { name: "Segoe UI", size: 14, bold: true, color: { argb: "FFFFFF" } };
-      titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "151304" } };
+      titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "1E3A8A" } }; // Navy Blue
       titleCell.alignment = { horizontal: "center", vertical: "middle" };
       sheet1.getRow(1).height = 40;
       
       // Details Info
       sheet1.addRow([]);
       sheet1.addRow(["Report Date & Time:", new Date().toLocaleString()]);
-      sheet1.addRow(["Total Registered Students:", report.totalRegistered]);
-      sheet1.addRow(["Overall Attendance Rate:", `${report.overallRate}%`]);
       sheet1.addRow([]);
       
       // Style info cells nicely
-      const labelFont = { name: "Segoe UI", size: 10, bold: true, color: { argb: "555555" } };
-      const valFont = { name: "Segoe UI", size: 10, bold: true, color: { argb: "111111" } };
-      [3, 4, 5].forEach((rowNum) => {
-        const row = sheet1.getRow(rowNum);
-        row.getCell(1).font = labelFont;
-        row.getCell(2).font = valFont;
-        row.getCell(2).alignment = { horizontal: "left" };
-      });
+      const labelFont = { name: "Segoe UI", size: 10, bold: true, color: { argb: "64748B" } };
+      const valFont = { name: "Segoe UI", size: 10, bold: true, color: { argb: "0F172A" } };
+      sheet1.getRow(3).getCell(1).font = labelFont;
+      sheet1.getRow(3).getCell(2).font = valFont;
+
+      // Draw Summary Dashboard Cards (Row 5 & 6)
+      sheet1.mergeCells("A5:A6");
+      const card1 = sheet1.getCell("A5");
+      card1.value = `Total Enrolled\n${report.totalRegistered}`;
+      card1.font = { name: "Segoe UI", size: 11, bold: true, color: { argb: "1E293B" } };
+      card1.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+      card1.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "F1F5F9" } };
+      card1.border = {
+        top: { style: "medium", color: { argb: "CBD5E1" } },
+        bottom: { style: "medium", color: { argb: "CBD5E1" } },
+        left: { style: "medium", color: { argb: "CBD5E1" } },
+        right: { style: "medium", color: { argb: "CBD5E1" } }
+      };
+
+      sheet1.mergeCells("B5:C6");
+      const card2 = sheet1.getCell("B5");
+      card2.value = `Overall Attendance\n${report.overallRate}%`;
+      const isHighAttendance = report.overallRate >= 75;
+      card2.font = { name: "Segoe UI", size: 11, bold: true, color: { argb: isHighAttendance ? "15803D" : "B91C1C" } };
+      card2.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+      card2.fill = { type: "pattern", pattern: "solid", fgColor: { argb: isHighAttendance ? "DCFCE7" : "FEE2E2" } };
+      card2.border = {
+        top: { style: "medium", color: { argb: isHighAttendance ? "86EFAC" : "FCA5A5" } },
+        bottom: { style: "medium", color: { argb: isHighAttendance ? "86EFAC" : "FCA5A5" } },
+        left: { style: "medium", color: { argb: isHighAttendance ? "86EFAC" : "FCA5A5" } },
+        right: { style: "medium", color: { argb: isHighAttendance ? "86EFAC" : "FCA5A5" } }
+      };
+
+      sheet1.mergeCells("D5:E6");
+      const card3 = sheet1.getCell("D5");
+      const sessionsHeldCount = report.perDay?.filter((d: any) => d.checkedIn > 0).length || 0;
+      card3.value = `Sessions Held\n${sessionsHeldCount} / ${WORKSHOP_DAYS}`;
+      card3.font = { name: "Segoe UI", size: 11, bold: true, color: { argb: "0F172A" } };
+      card3.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+      card3.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "F1F5F9" } };
+      card3.border = {
+        top: { style: "medium", color: { argb: "CBD5E1" } },
+        bottom: { style: "medium", color: { argb: "CBD5E1" } },
+        left: { style: "medium", color: { argb: "CBD5E1" } },
+        right: { style: "medium", color: { argb: "CBD5E1" } }
+      };
+
+      sheet1.addRow([]); // Row 7 spacer
+      sheet1.addRow([]); // Row 8 spacer
       
-      // Day Summary Table Header
+      // Day Summary Table Header (Row 9)
       const dayHeaderRow = ["Day", "Session Date", "Checked In", "Total Registered", "Attendance %"];
-      const headerRowNum = 7;
+      const headerRowNum = 9;
       const headerRowObj = sheet1.getRow(headerRowNum);
       dayHeaderRow.forEach((val, idx) => {
         headerRowObj.getCell(idx + 1).value = val;
@@ -748,19 +820,18 @@ export default function AdminDashboardPage() {
       headerRowObj.height = 25;
       for (let col = 1; col <= 5; col++) {
         const cell = headerRowObj.getCell(col);
-        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD446" } };
-        cell.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: "000000" } };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "1E3A8A" } };
+        cell.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: "FFFFFF" } };
         cell.alignment = { horizontal: "center", vertical: "middle" };
         cell.border = {
           top: { style: "thin", color: { argb: "CCCCCC" } },
-          bottom: { style: "medium", color: { argb: "111111" } },
+          bottom: { style: "medium", color: { argb: "1E3A8A" } },
           left: { style: "thin", color: { argb: "CCCCCC" } },
           right: { style: "thin", color: { argb: "CCCCCC" } }
         };
       }
       
-      // Add day rows
-      // We can resolve date names from SCHEDULE_DAYS
+      // Add day rows starting row 10
       report.perDay.forEach((dayData: any) => {
         const scheduleDay = SCHEDULE_DAYS.find((sd: any) => sd.day === dayData.day);
         const dateStr = scheduleDay ? scheduleDay.date : "N/A";
@@ -792,10 +863,10 @@ export default function AdminDashboardPage() {
       
       // Set Column Widths for Sheet 1
       sheet1.columns = [
-        { width: 15 }, // Day
-        { width: 18 }, // Session Date
-        { width: 15 }, // Checked In
-        { width: 20 }, // Total Registered
+        { width: 16 }, // Day
+        { width: 20 }, // Session Date
+        { width: 16 }, // Checked In
+        { width: 22 }, // Total Registered
         { width: 18 }  // Attendance %
       ];
       
@@ -822,14 +893,14 @@ export default function AdminDashboardPage() {
       header2Row.height = 28;
       for (let col = 1; col <= headers2.length; col++) {
         const cell = header2Row.getCell(col);
-        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "151304" } };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "1E3A8A" } }; // Navy Blue
         cell.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: "FFFFFF" } };
         cell.alignment = { horizontal: "center", vertical: "middle" };
         cell.border = {
-          top: { style: "thin", color: { argb: "444444" } },
-          bottom: { style: "medium", color: { argb: "111111" } },
-          left: { style: "thin", color: { argb: "444444" } },
-          right: { style: "thin", color: { argb: "444444" } }
+          top: { style: "thin", color: { argb: "CCCCCC" } },
+          bottom: { style: "medium", color: { argb: "1E3A8A" } },
+          left: { style: "thin", color: { argb: "CCCCCC" } },
+          right: { style: "thin", color: { argb: "CCCCCC" } }
         };
       }
       
@@ -851,13 +922,17 @@ export default function AdminDashboardPage() {
         
         for (let d = 1; d <= 7; d++) {
           const isPresent = student.presentDays?.includes(d);
-          const dayReport = report.perDay?.find((pd: any) => pd.day === d);
+          const isWindowOpen = adminWindow && adminWindow.day === d;
+          const dayReport = report?.perDay?.find((pd: any) => pd.day === d);
           const isHeld = (dayReport && dayReport.checkedIn > 0) || d <= (stats.sessionsCompleted || 0);
           
           if (isPresent) {
             rowValues.push("Present");
             presentCount++;
-            if (isHeld) heldCount++;
+            heldCount++;
+          } else if (isWindowOpen) {
+            rowValues.push("Waiting");
+            heldCount++;
           } else if (isHeld) {
             rowValues.push("Absent");
             heldCount++;
@@ -893,38 +968,39 @@ export default function AdminDashboardPage() {
           if (col >= 5 && col <= 11) {
             const val = cell.value;
             if (val === "Present") {
-              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "E8F5E9" } }; // Light green tint
-              cell.font = { name: "Segoe UI", size: 10, color: { argb: "2E7D32" }, bold: true };
+              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "DCFCE7" } }; // Soft green
+              cell.font = { name: "Segoe UI", size: 10, color: { argb: "15803D" }, bold: true };
             } else if (val === "Absent") {
-              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEBEE" } }; // Light red tint
-              cell.font = { name: "Segoe UI", size: 10, color: { argb: "C62828" }, bold: true };
+              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FEE2E2" } }; // Soft red
+              cell.font = { name: "Segoe UI", size: 10, color: { argb: "B91C1C" }, bold: true };
+            } else if (val === "Waiting") {
+              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FEF3C7" } }; // Soft yellow
+              cell.font = { name: "Segoe UI", size: 10, color: { argb: "D97706" }, bold: true };
             } else {
-              cell.font = { name: "Segoe UI", size: 10, color: { argb: "9E9E9E" } };
+              cell.font = { name: "Segoe UI", size: 10, color: { argb: "94A3B8" } };
             }
           }
           
-          // Style last % rate cell
+          // Style last % rate cell with conditional highlight (<75% low attendance flag)
           if (col === 12) {
-            cell.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: "111111" } };
+            const isLowAttendance = ratePct < 75;
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: isLowAttendance ? "FEE2E2" : "DCFCE7" } };
+            cell.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: isLowAttendance ? "B91C1C" : "15803D" } };
           }
         }
       });
       
-      // Auto-fit column widths for Sheet 2
-      sheet2.columns = [
-        { width: 22 }, // Name
-        { width: 18 }, // Enrollment Number
-        { width: 14 }, // Branch
-        { width: 14 }, // Year of Study
-        { width: 11 }, // Day 1
-        { width: 11 }, // Day 2
-        { width: 11 }, // Day 3
-        { width: 11 }, // Day 4
-        { width: 11 }, // Day 5
-        { width: 11 }, // Day 6
-        { width: 11 }, // Day 7
-        { width: 20 }  // Total Attendance %
-      ];
+      // Auto-fit column widths for Sheet 2 dynamically
+      sheet2.columns.forEach((column: any) => {
+        let maxLen = 0;
+        column.eachCell({ includeEmpty: true }, (cell: any) => {
+          const val = cell.value ? String(cell.value) : "";
+          if (val.length > maxLen) {
+            maxLen = val.length;
+          }
+        });
+        column.width = Math.max(maxLen + 4, 12);
+      });
       
       // Save file
       const buffer = await workbook.xlsx.writeBuffer();
@@ -940,7 +1016,7 @@ export default function AdminDashboardPage() {
       showToast("success", "Exported Excel file successfully!");
     } catch (err: any) {
       console.error("Excel generation error:", err);
-      showToast("error", `Failed to generate Excel: ${err.message}`);
+      showToast("error", "Failed to generate Excel file.");
     } finally {
       setExporting(false);
     }
@@ -1053,11 +1129,20 @@ export default function AdminDashboardPage() {
       const res = await fetch("/api/admin/evaluate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submission_id: selectedSubId, marks_obtained: gradeMarks, mentor_feedback: gradeFeedback }),
+        body: JSON.stringify({
+          submission_id: selectedSubId,
+          marks_obtained: gradeMarks,
+          mentor_feedback: gradeFeedback,
+          manual_bonus_xp: Number(manualBonusXp)
+        }),
       });
       if (res.ok) {
-        showToast("success", "Evaluation saved!");
-        setSelectedSubId(""); setGradeMarks(""); setGradeFeedback("");
+        showToast("success", "Evaluation saved and XP updated!");
+        setSelectedSubId("");
+        setGradeMarks("");
+        setGradeFeedback("");
+        setManualBonusXp("0");
+        setGradingSubmission(null);
         loadData();
       } else {
         showToast("error", "Failed to save evaluation.");
@@ -1133,7 +1218,7 @@ export default function AdminDashboardPage() {
 
       {/* ===== SIDEBAR ===== */}
       <aside className="db-sidebar">
-        <a href="#" className="db-sidebar-logo-section" onClick={(e) => { e.preventDefault(); setCurrentTab("home"); }}>
+        <a href="/" className="db-sidebar-logo-section">
           <div className="db-sidebar-logo-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '26px', height: '26px', color: '#ffffff' }}>
               <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
@@ -1683,127 +1768,318 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {/* ======= TAB: ATTENDANCE ======= */}
         {currentTab === "attendance" && (
           <div className="db-projects-section">
-            <h3 className="db-section-title">Attendance Control</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "24px", alignItems: "start" }}>
-              <div className="modern-card" style={{ padding: "28px", display: "flex", flexDirection: "column", gap: "12px", minHeight: "auto", backgroundColor: "#fff" }}>
-                <h4 style={{ fontSize: "18px", fontWeight: "700", color: "var(--db-text-primary)", margin: 0 }}>Open Check-in Window</h4>
-                <p style={{ fontSize: "13px", fontWeight: "400", color: "var(--db-text-secondary)", lineHeight: "1.6", margin: 0 }}>
-                  Pick the session day, then open a {ATTENDANCE_WINDOW_MINUTES}-minute, server-validated check-in window. Students can only check in while it&apos;s live.
-                </p>
-                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", margin: "12px 0" }}>
-                    {/* Attendance sub-tab toggle */}
-                    <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-                      <button
-                        onClick={() => setAttendanceSub('live')}
-                        style={{
-                          padding: "6px 12px",
-                          borderRadius: "8px",
-                          border: attendanceSub === 'live' ? "2px solid var(--db-accent-yellow)" : "1.5px solid rgba(0,0,0,0.12)",
-                          background: attendanceSub === 'live' ? "var(--db-accent-yellow)" : "#fff",
-                          color: attendanceSub === 'live' ? "#1a1a2e" : "var(--db-text-primary)",
-                          fontWeight: "700",
-                          cursor: "pointer",
-                        }}
-                      >
-                        Live
-                      </button>
-                      <button
-                        onClick={() => setAttendanceSub('analytics')}
-                        style={{
-                          padding: "6px 12px",
-                          borderRadius: "8px",
-                          border: attendanceSub === 'analytics' ? "2px solid var(--db-accent-orange)" : "1.5px solid rgba(0,0,0,0.12)",
-                          background: attendanceSub === 'analytics' ? "var(--db-accent-orange)" : "#fff",
-                          color: attendanceSub === 'analytics' ? "#1a1a2e" : "var(--db-text-primary)",
-                          fontWeight: "700",
-                          cursor: "pointer",
-                        }}
-                      >
-                        Analytics
-                      </button>
-                    </div>
-                  {Array.from({ length: WORKSHOP_DAYS }, (_, i) => i + 1).map((d) => (
-                    <button
-                      key={d}
-                      onClick={() => setQrDay(d)}
-                      disabled={!!adminWindow}
-                      style={{
-                        width: "36px", height: "36px", borderRadius: "50%",
-                        border: qrDay === d ? "2px solid var(--db-accent-yellow)" : "1.5px solid rgba(0,0,0,0.08)",
-                        background: qrDay === d ? "var(--db-accent-yellow)" : "#fff",
-                        color: qrDay === d ? "#1a1a2e" : "var(--db-text-primary)",
-                        fontWeight: "700", cursor: !!adminWindow ? "not-allowed" : "pointer",
-                        opacity: !!adminWindow && qrDay !== d ? 0.5 : 1,
-                        transition: "all 0.2s"
-                      }}
-                      className="quick-action-btn"
-                    >
-                      {d}
-                    </button>
-                  ))}
-                </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
+              <h3 className="db-section-title" style={{ margin: 0 }}>Attendance Control</h3>
+              <div style={{ display: "flex", gap: "8px" }}>
                 <button
-                  className="explore-btn"
-                  onClick={handleOpenWindow}
-                  disabled={opening || !!adminWindow}
-                  style={{ width: "100%", padding: "12px", borderRadius: "12px", fontWeight: "800", fontSize: "14px" }}
+                  onClick={() => setAttendanceSub('live')}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: "10px",
+                    border: "none",
+                    background: attendanceSub === 'live' ? "var(--db-accent-yellow)" : "#f1f5f9",
+                    color: attendanceSub === 'live' ? "#000" : "#64748b",
+                    fontWeight: "800",
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    boxShadow: attendanceSub === 'live' ? "0 4px 12px rgba(251, 191, 36, 0.25)" : "none",
+                    transition: "all 0.2s"
+                  }}
                 >
-                  {opening ? "Opening…" : adminWindow ? `Day ${adminWindow.day} window is live` : `Open Check-in for Day ${qrDay}`}
+                  ⏱️ Live Window
                 </button>
-                {adminWindow && (
+                <button
+                  onClick={() => { setAttendanceSub('analytics'); if (!selectedAnalyticsDay) setSelectedAnalyticsDay(1); }}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: "10px",
+                    border: "none",
+                    background: attendanceSub === 'analytics' ? "var(--db-accent-orange)" : "#f1f5f9",
+                    color: attendanceSub === 'analytics' ? "#fff" : "#64748b",
+                    fontWeight: "800",
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    boxShadow: attendanceSub === 'analytics' ? "0 4px 12px rgba(249, 115, 22, 0.25)" : "none",
+                    transition: "all 0.2s"
+                  }}
+                >
+                  📊 Roster & Analytics
+                </button>
+              </div>
+            </div>
+
+            {/* ======= SUBTAB: LIVE CONTROL ======= */}
+            {attendanceSub === 'live' && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "24px", alignItems: "start" }}>
+                <div className="modern-card" style={{ padding: "28px", display: "flex", flexDirection: "column", gap: "12px", minHeight: "auto", backgroundColor: "#fff" }}>
+                  <h4 style={{ fontSize: "18px", fontWeight: "700", color: "var(--db-text-primary)", margin: 0 }}>Open Check-in Window</h4>
+                  <p style={{ fontSize: "13px", fontWeight: "400", color: "var(--db-text-secondary)", lineHeight: "1.6", margin: 0 }}>
+                    Pick the session day, then open a {ATTENDANCE_WINDOW_MINUTES}-minute, server-validated check-in window. Students can only check in while it&apos;s live.
+                  </p>
+                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", margin: "12px 0" }}>
+                    {Array.from({ length: WORKSHOP_DAYS }, (_, i) => i + 1).map((d) => (
+                      <button
+                        key={d}
+                        onClick={() => setQrDay(d)}
+                        disabled={!!adminWindow}
+                        style={{
+                          width: "36px", height: "36px", borderRadius: "50%",
+                          border: qrDay === d ? "2px solid var(--db-accent-yellow)" : "1.5px solid rgba(0,0,0,0.08)",
+                          background: qrDay === d ? "var(--db-accent-yellow)" : "#fff",
+                          color: qrDay === d ? "#1a1a2e" : "var(--db-text-primary)",
+                          fontWeight: "700", cursor: !!adminWindow ? "not-allowed" : "pointer",
+                          opacity: !!adminWindow && qrDay !== d ? 0.5 : 1,
+                          transition: "all 0.2s"
+                        }}
+                        className="quick-action-btn"
+                      >
+                        {d}
+                      </button>
+                    ))}
+                  </div>
                   <button
-                    className="profile-discard-btn"
-                    onClick={handleCloseWindow}
-                    disabled={closing}
-                    style={{ width: "100%", padding: "12px", borderRadius: "12px", fontWeight: "800", fontSize: "14px", marginTop: "8px", border: "1px solid #ef4444", color: "#ef4444" }}
+                    className="explore-btn"
+                    onClick={handleOpenWindow}
+                    disabled={opening || !!adminWindow}
+                    style={{ width: "100%", padding: "12px", borderRadius: "12px", fontWeight: "800", fontSize: "14px" }}
                   >
-                    {closing ? "Closing…" : "Close Window Early"}
+                    {opening ? "Opening…" : adminWindow ? `Day ${adminWindow.day} window is live` : `Open Check-in for Day ${qrDay}`}
                   </button>
+                  {adminWindow && (
+                    <button
+                      className="profile-discard-btn"
+                      onClick={handleCloseWindow}
+                      disabled={closing}
+                      style={{ width: "100%", padding: "12px", borderRadius: "12px", fontWeight: "800", fontSize: "14px", marginTop: "8px", border: "1px solid #ef4444", color: "#ef4444" }}
+                    >
+                      {closing ? "Closing…" : "Close Window Early"}
+                    </button>
+                  )}
+                </div>
+
+                {adminWindow ? (
+                  <div className="modern-card att-status-card" style={{ minHeight: "auto", padding: "28px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "16px", backgroundColor: "#fff" }}>
+                    <span className="att-live-tag">LIVE WINDOW · DAY {adminWindow.day}</span>
+                    <CountdownRing mm={mm} ss={ss} progress={attProgress} />
+                    <div className="att-qr" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                      <div style={{ background: "#fff", padding: "12px", borderRadius: "12px", display: "inline-block", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
+                        <QRCodeSVG value={adminWindow.session_token} size={150} level="M" />
+                      </div>
+                      <span style={{ display: "block", fontSize: "11px", color: "var(--db-text-muted)", marginTop: "8px" }}>Session token · valid only while this window is live</span>
+                    </div>
+                    <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--db-text-primary)", marginTop: "12px" }}>
+                      <strong>{adminWindow.checkins.length}</strong> checked in
+                    </div>
+                    <div style={{ width: "100%", maxHeight: "200px", overflowY: "auto", marginTop: "8px" }}>
+                      {adminWindow.checkins.length === 0 ? (
+                        <div style={{ fontSize: "13px", color: "var(--db-text-muted)", padding: "20px 0" }}>No check-ins yet — waiting for students…</div>
+                      ) : (
+                        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
+                          {adminWindow.checkins.map((c: any, i: number) => (
+                            <li key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderRadius: "8px", background: "rgba(0,0,0,0.02)", fontSize: "12px" }}>
+                              <span style={{ fontWeight: "700", color: "var(--db-text-primary)" }}>{c.name}</span>
+                              <span style={{ color: "var(--db-text-secondary)" }}>{new Date(c.checked_in_at).toLocaleTimeString()}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="modern-card att-status-card" style={{ minHeight: "auto", padding: "32px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", backgroundColor: "#fff", gap: "12px" }}>
+                    <div className="att-status-icon" style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "28px", height: "28px", color: "var(--db-text-muted)" }}>
+                        <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
+                      </svg>
+                    </div>
+                    <h4 style={{ fontSize: "18px", fontWeight: "700", color: "var(--db-text-primary)", margin: 0 }}>No active window</h4>
+                    <p style={{ fontSize: "13px", color: "var(--db-text-secondary)", margin: 0, maxWidth: "280px" }}>Open a check-in window from the left to start collecting attendance in real time.</p>
+                  </div>
                 )}
               </div>
-              {adminWindow ? (
-                <div className="modern-card att-status-card" style={{ minHeight: "auto", padding: "28px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "16px", backgroundColor: "#fff" }}>
-                  <span className="att-live-tag">LIVE WINDOW · DAY {adminWindow.day}</span>
-                  <CountdownRing mm={mm} ss={ss} progress={attProgress} />
-                  <div className="att-qr" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                    <div style={{ background: "#fff", padding: "12px", borderRadius: "12px", display: "inline-block", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
-                      <QRCodeSVG value={adminWindow.session_token} size={150} level="M" />
+            )}
+
+            {/* ======= SUBTAB: ANALYTICS & MANUAL OVERRIDE ======= */}
+            {attendanceSub === 'analytics' && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                {/* Summary Metrics Row */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
+                  <div className="stat-card-modern" style={{ background: "#fff", border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "20px", padding: "20px" }}>
+                    <span style={{ fontSize: "11px", fontWeight: "800", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Registered Students</span>
+                    <div style={{ fontSize: "28px", fontWeight: "900", color: "var(--db-text-primary)", marginTop: "4px" }}>{report?.totalRegistered || 0}</div>
+                  </div>
+                  <div className="stat-card-modern" style={{ background: "#fff", border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "20px", padding: "20px" }}>
+                    <span style={{ fontSize: "11px", fontWeight: "800", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Avg Attendance Rate</span>
+                    <div style={{ fontSize: "28px", fontWeight: "900", color: "var(--db-accent-orange)", marginTop: "4px" }}>{report?.overallRate || 0}%</div>
+                  </div>
+                  <div className="stat-card-modern" style={{ background: "#fff", border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "20px", padding: "20px" }}>
+                    <span style={{ fontSize: "11px", fontWeight: "800", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Sessions Held</span>
+                    <div style={{ fontSize: "28px", fontWeight: "900", color: "var(--db-accent-green)", marginTop: "4px" }}>
+                      {report?.perDay?.filter((d: any) => d.checkedIn > 0).length || 0} / {WORKSHOP_DAYS}
                     </div>
-                    <span style={{ display: "block", fontSize: "11px", color: "var(--db-text-muted)", marginTop: "8px" }}>Session token · valid only while this window is live</span>
-                  </div>
-                  <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--db-text-primary)", marginTop: "12px" }}>
-                    <strong>{adminWindow.checkins.length}</strong> checked in
-                  </div>
-                  <div style={{ width: "100%", maxHeight: "200px", overflowY: "auto", marginTop: "8px" }}>
-                    {adminWindow.checkins.length === 0 ? (
-                      <div style={{ fontSize: "13px", color: "var(--db-text-muted)", padding: "20px 0" }}>No check-ins yet — waiting for students…</div>
-                    ) : (
-                      <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
-                        {adminWindow.checkins.map((c: any, i: number) => (
-                          <li key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderRadius: "8px", background: "rgba(0,0,0,0.02)", fontSize: "12px" }}>
-                            <span style={{ fontWeight: "700", color: "var(--db-text-primary)" }}>{c.name}</span>
-                            <span style={{ color: "var(--db-text-secondary)" }}>{new Date(c.checked_in_at).toLocaleTimeString()}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
                   </div>
                 </div>
-              ) : (
-                <div className="modern-card att-status-card" style={{ minHeight: "auto", padding: "32px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", backgroundColor: "#fff", gap: "12px" }}>
-                  <div className="att-status-icon" style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "28px", height: "28px", color: "var(--db-text-muted)" }}>
-                      <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
-                    </svg>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: "24px", alignItems: "start", flexWrap: "wrap" }}>
+                  {/* Left Column: Sessions List */}
+                  <div className="modern-card" style={{ padding: "24px", backgroundColor: "#fff" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                      <h4 style={{ margin: 0, fontSize: "15px", fontWeight: "800" }}>Daily Session Summaries</h4>
+                      <button
+                        onClick={handleExportExcel}
+                        disabled={exporting}
+                        style={{ padding: "6px 12px", background: "none", border: "1.5px solid #eaeaea", borderRadius: "8px", fontSize: "11px", fontWeight: "800", cursor: "pointer", color: "var(--db-text-secondary)" }}
+                      >
+                        {exporting ? "Exporting..." : "📥 Export Excel"}
+                      </button>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {(report?.perDay || []).map((dayData: any) => {
+                        const isLive = adminWindow?.day === dayData.day;
+                        const isSelected = selectedAnalyticsDay === dayData.day;
+
+                        return (
+                          <div
+                            key={dayData.day}
+                            onClick={() => setSelectedAnalyticsDay(dayData.day)}
+                            style={{
+                              padding: "16px",
+                              borderRadius: "16px",
+                              border: isSelected ? "1.5px solid var(--db-accent-orange)" : "1.5px solid rgba(0,0,0,0.06)",
+                              background: isSelected ? "rgba(249, 115, 22, 0.02)" : "#fdfdfd",
+                              cursor: "pointer",
+                              transition: "all 0.2s"
+                            }}
+                          >
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <div>
+                                <div style={{ fontSize: "14px", fontWeight: "800", color: "var(--db-text-primary)" }}>Day {dayData.day} Session</div>
+                                <div style={{ fontSize: "11px", color: "var(--db-text-muted)", marginTop: "2px" }}>
+                                  {dayData.checkedIn} Checked In ({dayData.pct}%)
+                                </div>
+                              </div>
+
+                              <div>
+                                {isLive ? (
+                                  <span style={{ fontSize: "9px", background: "rgba(239, 68, 68, 0.1)", color: "#ef4444", padding: "4px 8px", borderRadius: "20px", fontWeight: "900" }}>LIVE</span>
+                                ) : dayData.checkedIn > 0 ? (
+                                  <span style={{ fontSize: "9px", background: "rgba(16, 185, 129, 0.1)", color: "#10b981", padding: "4px 8px", borderRadius: "20px", fontWeight: "900" }}>HELD</span>
+                                ) : (
+                                  <span style={{ fontSize: "9px", background: "#f3f4f6", color: "#64748b", padding: "4px 8px", borderRadius: "20px", fontWeight: "900" }}>UPCOMING</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <h4 style={{ fontSize: "18px", fontWeight: "700", color: "var(--db-text-primary)", margin: 0 }}>No active window</h4>
-                  <p style={{ fontSize: "13px", color: "var(--db-text-secondary)", margin: 0, maxWidth: "280px" }}>Open a check-in window from the left to start collecting attendance in real time.</p>
+
+                  {/* Right Column: Detailed Student Override */}
+                  {selectedAnalyticsDay && (
+                    <div className="modern-card" style={{ padding: "24px", backgroundColor: "#fff" }}>
+                      <h4 style={{ margin: "0 0 12px 0", fontSize: "15px", fontWeight: "800" }}>
+                        Attendance Roster: <span style={{ color: "var(--db-accent-orange)" }}>Day {selectedAnalyticsDay}</span>
+                      </h4>
+
+                      {/* Search student roster */}
+                      <input
+                        type="text"
+                        placeholder="Search student by name or roll..."
+                        value={analyticsSearch}
+                        onChange={(e) => setAnalyticsSearch(e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "10px 14px",
+                          borderRadius: "10px",
+                          border: "1.5px solid #eaeaea",
+                          fontSize: "12px",
+                          outline: "none",
+                          marginBottom: "16px"
+                        }}
+                      />
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "400px", overflowY: "auto" }}>
+                        {reportLoading ? (
+                          <div style={{ textAlign: "center", padding: "20px", color: "var(--db-text-muted)" }}>Loading roster...</div>
+                        ) : (report?.students || [])
+                          .filter((s: any) =>
+                            s.name.toLowerCase().includes(analyticsSearch.toLowerCase()) ||
+                            s.enrollmentNumber.toLowerCase().includes(analyticsSearch.toLowerCase())
+                          )
+                          .map((student: any) => {
+                            const isPresent = student.presentDays?.includes(selectedAnalyticsDay);
+                            const isWindowOpen = adminWindow && adminWindow.day === selectedAnalyticsDay;
+                            const dayReport = report?.perDay?.find((pd: any) => pd.day === selectedAnalyticsDay);
+                            const isNotStarted = !isWindowOpen && (!dayReport || dayReport.checkedIn === 0);
+
+                            let badgeBg = "#f1f5f9";
+                            let badgeColor = "#64748b";
+                            let badgeText = "⚪ Not Started";
+
+                            if (isPresent) {
+                              badgeBg = "rgba(16, 185, 129, 0.1)";
+                              badgeColor = "#10b981";
+                              badgeText = "🟢 Present";
+                            } else if (isWindowOpen) {
+                              badgeBg = "rgba(251, 191, 36, 0.1)";
+                              badgeColor = "#d97706";
+                              badgeText = "🟡 Waiting";
+                            } else if (!isNotStarted) {
+                              badgeBg = "rgba(239, 68, 68, 0.1)";
+                              badgeColor = "#ef4444";
+                              badgeText = "🔴 Absent";
+                            }
+
+                            return (
+                              <div
+                                key={student.enrollmentNumber}
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                  padding: "12px 16px",
+                                  borderRadius: "12px",
+                                  background: "#f9fafb",
+                                  border: "1px solid rgba(0,0,0,0.03)"
+                                }}
+                              >
+                                <div>
+                                  <div style={{ fontSize: "13px", fontWeight: "800", color: "var(--db-text-primary)" }}>{student.name}</div>
+                                  <div style={{ fontSize: "10px", color: "var(--db-text-muted)", marginTop: "2px" }}>
+                                    {student.enrollmentNumber} · {student.branch}
+                                  </div>
+                                </div>
+
+                                <div
+                                  style={{
+                                    padding: "6px 12px",
+                                    borderRadius: "8px",
+                                    fontSize: "11px",
+                                    fontWeight: "800",
+                                    background: badgeBg,
+                                    color: badgeColor,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "6px",
+                                    minWidth: "90px",
+                                    justifyContent: "center"
+                                  }}
+                                >
+                                  {badgeText}
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1878,79 +2154,464 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {/* ======= TAB: ASSIGNMENTS ======= */}
-        {currentTab === "assignments" && (
-          <div className="db-projects-section animate-in fade-in duration-300">
-            <h3 className="db-section-title">Assignments & Grading</h3>
+        {currentTab === "assignments" && (() => {
+          const totalAssignments = assignments.length;
+          const totalSubmissions = submissions.length;
+          const pendingCount = submissions.filter(s => s.marks_obtained === null || s.marks_obtained === undefined).length;
+          const gradedCount = submissions.filter(s => s.marks_obtained !== null && s.marks_obtained !== undefined);
+          const avgMarks = gradedCount.length > 0
+            ? (gradedCount.reduce((sum, s) => sum + Number(s.marks_obtained || 0), 0) / gradedCount.length).toFixed(1)
+            : "0.0";
+
+          // Calculate counts per assignment
+          const getAssignmentStats = (assId: string) => {
+            const assSubs = submissions.filter(s => s.assignment_id === assId);
+            const total = assSubs.length;
+            const pending = assSubs.filter(s => s.marks_obtained === null || s.marks_obtained === undefined).length;
+            const graded = total - pending;
+            return { total, pending, graded };
+          };
+
+          // Export submissions for an assignment to CSV
+          const handleExportCSV = (ass: any) => {
+            const assSubs = submissions.filter(s => s.assignment_id === ass.id);
+            const csvRows = [
+              ["Student Name", "Enrollment Number", "Assignment Title", "Marks Obtained", "Max Marks", "Submission Time", "Status", "Feedback"]
+            ];
+
+            assSubs.forEach(sub => {
+              const student = students.find(s => s.id === sub.student_id) || {};
+              csvRows.push([
+                student.name || "N/A",
+                student.enrollment_number || student.enrollmentNumber || "N/A",
+                ass.title,
+                sub.marks_obtained !== null ? sub.marks_obtained : "Pending Review",
+                ass.max_marks || 10,
+                new Date(sub.submitted_at).toLocaleString(),
+                sub.marks_obtained !== null ? "Reviewed" : "Pending",
+                sub.mentor_feedback || ""
+              ]);
+            });
+
+            const csvContent = "data:text/csv;charset=utf-8," 
+              + csvRows.map(e => e.map(val => `"${String(val).replace(/"/g, '""')}"`).join(",")).join("\n");
             
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "24px", alignItems: "start" }}>
-              {/* Create Assignment */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                <h4 style={{ margin: 0, fontSize: "14px", fontWeight: "900", color: "var(--db-text-primary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Create Assignment</h4>
-                <form onSubmit={handleCreateAssignment} className="modern-card" style={{ display: "block", padding: "24px", backgroundColor: "#fff", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "16px", boxShadow: "0 8px 32px rgba(0,0,0,0.05)", color: "var(--db-text-primary)" }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                    
-                    {/* Title + Due Date Row */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "16px" }} className="form-row-responsive">
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `${ass.title.replace(/\s+/g, "_")}_results.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          };
+
+          const selectedAss = assignments.find(a => String(a.id) === String(selectedAssignmentId));
+          const selectedAssSubs = selectedAssignmentId 
+            ? submissions.filter(s => String(s.assignment_id) === String(selectedAssignmentId))
+            : [];
+
+          return (
+            <div className="db-projects-section animate-in fade-in duration-300">
+              {/* Summary Stats Cards */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+                <div className="stat-card-modern" style={{ background: "#fff", border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "20px", padding: "20px", boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}>
+                  <span style={{ fontSize: "11px", fontWeight: "800", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Total Assignments</span>
+                  <div style={{ fontSize: "28px", fontWeight: "900", color: "var(--db-text-primary)", marginTop: "4px" }}>{totalAssignments}</div>
+                </div>
+                <div className="stat-card-modern" style={{ background: "#fff", border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "20px", padding: "20px", boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}>
+                  <span style={{ fontSize: "11px", fontWeight: "800", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Total Submissions</span>
+                  <div style={{ fontSize: "28px", fontWeight: "900", color: "var(--db-text-primary)", marginTop: "4px" }}>{totalSubmissions}</div>
+                </div>
+                <div className="stat-card-modern" style={{ background: "#fff", border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "20px", padding: "20px", boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}>
+                  <span style={{ fontSize: "11px", fontWeight: "800", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Pending Reviews</span>
+                  <div style={{ fontSize: "28px", fontWeight: "900", color: "var(--db-accent-orange)", marginTop: "4px" }}>{pendingCount}</div>
+                </div>
+                <div className="stat-card-modern" style={{ background: "#fff", border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "20px", padding: "20px", boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}>
+                  <span style={{ fontSize: "11px", fontWeight: "800", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Average Marks</span>
+                  <div style={{ fontSize: "28px", fontWeight: "900", color: "var(--db-accent-green)", marginTop: "4px" }}>{avgMarks} <span style={{ fontSize: "12px", color: "var(--db-text-muted)" }}>/ 10</span></div>
+                </div>
+              </div>
+
+              <h3 className="db-section-title">Assignments &amp; Grading</h3>
+              
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: "24px", alignItems: "start" }} className="form-row-responsive">
+                {/* Create Assignment Form */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <h4 style={{ margin: 0, fontSize: "13px", fontWeight: "900", color: "var(--db-text-primary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Create Assignment</h4>
+                  <form onSubmit={handleCreateAssignment} className="modern-card" style={{ display: "block", padding: "24px", backgroundColor: "#fff", border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "20px", boxShadow: "0 8px 32px rgba(0,0,0,0.02)" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                       <div>
                         <label style={{ fontSize: "11px", fontWeight: "800", display: "block", marginBottom: "6px", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Title*</label>
                         <input type="text" required value={newAssTitle} onChange={(e) => setNewAssTitle(e.target.value)}
                           placeholder="e.g. Day 3: Branching & Merging" className="form-input-text" style={{ background: "#fff", border: "1px solid #d1d5db", color: "#000", outline: "none", borderRadius: "10px", padding: "10px 12px", width: "100%" }} />
                       </div>
-                      <div>
-                        <label style={{ fontSize: "11px", fontWeight: "800", display: "block", marginBottom: "6px", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Due Date*</label>
-                        <input type="datetime-local" required value={newAssDueDate} onChange={(e) => setNewAssDueDate(e.target.value)} className="form-input-text" style={{ background: "#fff", border: "1px solid #d1d5db", color: "#000", outline: "none", borderRadius: "10px", padding: "10px 12px", width: "100%" }} />
+                      
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                        <div>
+                          <label style={{ fontSize: "11px", fontWeight: "800", display: "block", marginBottom: "6px", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Due Date*</label>
+                          <input type="datetime-local" required value={newAssDueDate} onChange={(e) => setNewAssDueDate(e.target.value)} className="form-input-text" style={{ background: "#fff", border: "1px solid #d1d5db", color: "#000", outline: "none", borderRadius: "10px", padding: "10px 12px", width: "100%" }} />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: "11px", fontWeight: "800", display: "block", marginBottom: "6px", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Max Marks*</label>
+                          <input type="number" required value={newAssMaxMarks} onChange={(e) => setNewAssMaxMarks(e.target.value)} className="form-input-text" style={{ background: "#fff", border: "1px solid #d1d5db", color: "#000", outline: "none", borderRadius: "10px", padding: "10px 12px", width: "100%" }} />
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Max Marks + Requirements Row */}
-                    <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: "16px" }} className="form-row-responsive">
                       <div>
-                        <label style={{ fontSize: "11px", fontWeight: "800", display: "block", marginBottom: "6px", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Max Marks*</label>
-                        <input type="number" required value={newAssMaxMarks} onChange={(e) => setNewAssMaxMarks(e.target.value)} className="form-input-text" style={{ background: "#fff", border: "1px solid #d1d5db", color: "#000", outline: "none", borderRadius: "10px", padding: "10px 12px", width: "100%" }} />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: "11px", fontWeight: "800", display: "block", marginBottom: "6px", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Required Submission Fields</label>
-                        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "2px" }}>
-                          <label style={{ display: "flex", alignItems: "center", gap: "6px", background: reqLiveUrl ? "rgba(255,212,70,0.15)" : "rgba(0,0,0,0.03)", border: reqLiveUrl ? "1px solid rgba(255,212,70,0.5)" : "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 10px", cursor: "pointer", fontSize: "11px", color: reqLiveUrl ? "#b45309" : "#666", transition: "all 0.2s", userSelect: "none" }}>
-                            <input type="checkbox" checked={reqLiveUrl} onChange={(e) => setReqLiveUrl(e.target.checked)} style={{ accentColor: "var(--db-accent-orange)", cursor: "pointer" }} />
+                        <label style={{ fontSize: "11px", fontWeight: "800", display: "block", marginBottom: "6px", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Required Fields</label>
+                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "2px" }}>
+                          <label style={{ display: "flex", alignItems: "center", gap: "6px", background: reqLiveUrl ? "rgba(255,212,70,0.12)" : "rgba(0,0,0,0.03)", border: reqLiveUrl ? "1px solid rgba(255,212,70,0.4)" : "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 10px", cursor: "pointer", fontSize: "11px", color: reqLiveUrl ? "#b45309" : "#666", transition: "all 0.2s" }}>
+                            <input type="checkbox" checked={reqLiveUrl} onChange={(e) => setReqLiveUrl(e.target.checked)} style={{ accentColor: "var(--db-accent-orange)" }} />
                             <span>🔗 Live URL</span>
                           </label>
-                          <label style={{ display: "flex", alignItems: "center", gap: "6px", background: reqGithubLink ? "rgba(255,212,70,0.15)" : "rgba(0,0,0,0.03)", border: reqGithubLink ? "1px solid rgba(255,212,70,0.5)" : "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 10px", cursor: "pointer", fontSize: "11px", color: reqGithubLink ? "#b45309" : "#666", transition: "all 0.2s", userSelect: "none" }}>
-                            <input type="checkbox" checked={reqGithubLink} onChange={(e) => setReqGithubLink(e.target.checked)} style={{ accentColor: "var(--db-accent-orange)", cursor: "pointer" }} />
+                          <label style={{ display: "flex", alignItems: "center", gap: "6px", background: reqGithubLink ? "rgba(255,212,70,0.12)" : "rgba(0,0,0,0.03)", border: reqGithubLink ? "1px solid rgba(255,212,70,0.4)" : "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 10px", cursor: "pointer", fontSize: "11px", color: reqGithubLink ? "#b45309" : "#666", transition: "all 0.2s" }}>
+                            <input type="checkbox" checked={reqGithubLink} onChange={(e) => setReqGithubLink(e.target.checked)} style={{ accentColor: "var(--db-accent-orange)" }} />
                             <span>💻 GitHub Repo</span>
                           </label>
-                          <label style={{ display: "flex", alignItems: "center", gap: "6px", background: reqAttachment ? "rgba(255,212,70,0.15)" : "rgba(0,0,0,0.03)", border: reqAttachment ? "1px solid rgba(255,212,70,0.5)" : "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 10px", cursor: "pointer", fontSize: "11px", color: reqAttachment ? "#b45309" : "#666", transition: "all 0.2s", userSelect: "none" }}>
-                            <input type="checkbox" checked={reqAttachment} onChange={(e) => setReqAttachment(e.target.checked)} style={{ accentColor: "var(--db-accent-orange)", cursor: "pointer" }} />
+                          <label style={{ display: "flex", alignItems: "center", gap: "6px", background: reqAttachment ? "rgba(255,212,70,0.12)" : "rgba(0,0,0,0.03)", border: reqAttachment ? "1px solid rgba(255,212,70,0.4)" : "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 10px", cursor: "pointer", fontSize: "11px", color: reqAttachment ? "#b45309" : "#666", transition: "all 0.2s" }}>
+                            <input type="checkbox" checked={reqAttachment} onChange={(e) => setReqAttachment(e.target.checked)} style={{ accentColor: "var(--db-accent-orange)" }} />
                             <span>📎 Attachment</span>
                           </label>
                         </div>
-                        {(!reqLiveUrl && !reqGithubLink && !reqAttachment) && (
-                          <div style={{ color: "#ef4444", fontSize: "10px", fontWeight: "700", marginTop: "6px" }}>⚠️ Select at least one required field to enable publishing.</div>
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: "11px", fontWeight: "800", display: "block", marginBottom: "6px", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Description*</label>
+                        <textarea required value={newAssDesc} onChange={(e) => setNewAssDesc(e.target.value)}
+                          placeholder="Add instructions, problem details..." className="form-input-text" style={{ background: "#fff", border: "1px solid #d1d5db", color: "#000", outline: "none", borderRadius: "10px", padding: "10px 12px", minHeight: "70px", width: "100%", fontFamily: "inherit" }} />
+                      </div>
+
+                      <button type="submit" disabled={creatingAss} className="explore-btn" style={{ width: "100%", padding: "12px", borderRadius: "12px", fontWeight: "800" }}>
+                        {creatingAss ? "Publishing…" : "Publish Assignment"}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* Published Assignments Cards */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <h4 style={{ margin: 0, fontSize: "13px", fontWeight: "900", color: "var(--db-text-primary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Published Assignments</h4>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                    {loadingAssignments ? <LoadingSpinner label="Loading assignments…" /> : assignments.length > 0 ? (
+                      assignments.map((ass: any, idx) => {
+                        const { total, pending, graded } = getAssignmentStats(ass.id);
+                        return (
+                          <div className="modern-card animate-in fade-in duration-300" key={ass.id} style={{ display: "block", padding: "20px", backgroundColor: "#fff", border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "20px", boxShadow: "0 4px 24px rgba(0,0,0,0.02)" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: "10px" }}>
+                              <div>
+                                <h4 style={{ margin: "0 0 2px 0", fontSize: "15px", fontWeight: "850", color: "var(--db-text-primary)" }}>{ass.title}</h4>
+                                <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--db-text-muted)" }}>🗓️ Day {idx + 1} · Due {new Date(ass.due_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>
+                              </div>
+                              <span style={{ fontSize: "10px", fontWeight: "800", padding: "4px 10px", borderRadius: "12px", backgroundColor: "rgba(16,185,129,0.1)", color: "#10b981", border: "1.5px solid rgba(16,185,129,0.2)" }}>
+                                MAX {ass.max_marks || 10} MARKS
+                              </span>
+                            </div>
+                            
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", background: "rgba(0,0,0,0.02)", borderRadius: "12px", padding: "10px 14px", margin: "14px 0" }}>
+                              <div style={{ textAlign: "center" }}>
+                                <div style={{ fontSize: "15px", fontWeight: "900", color: "var(--db-text-primary)" }}>{total}</div>
+                                <div style={{ fontSize: "9px", color: "var(--db-text-muted)", fontWeight: "700" }}>SUBMITTED</div>
+                              </div>
+                              <div style={{ textAlign: "center" }}>
+                                <div style={{ fontSize: "15px", fontWeight: "900", color: "var(--db-accent-orange)" }}>{pending}</div>
+                                <div style={{ fontSize: "9px", color: "var(--db-accent-orange)", fontWeight: "700" }}>PENDING</div>
+                              </div>
+                              <div style={{ textAlign: "center" }}>
+                                <div style={{ fontSize: "15px", fontWeight: "900", color: "var(--db-accent-green)" }}>{graded}</div>
+                                <div style={{ fontSize: "9px", color: "var(--db-accent-green)", fontWeight: "700" }}>REVIEWED</div>
+                              </div>
+                            </div>
+
+                            <div style={{ display: "flex", gap: "10px" }}>
+                              <button
+                                onClick={() => setSelectedAssignmentId(String(ass.id))}
+                                className={`explore-btn ${String(selectedAssignmentId) === String(ass.id) ? "active" : ""}`}
+                                style={{ flex: 1, height: "36px", fontSize: "11px", fontWeight: "800", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "10px" }}
+                              >
+                                📋 View Submissions
+                              </button>
+                              <button
+                                onClick={() => handleExportCSV(ass)}
+                                style={{ height: "36px", padding: "0 14px", background: "#f8fafc", border: "1.5px solid #cbd5e1", borderRadius: "10px", cursor: "pointer", fontSize: "11px", fontWeight: "850", color: "#64748b" }}
+                              >
+                                📤 Export CSV
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : <div className="modern-card" style={{ padding: "20px" }}>No assignments created yet.</div>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Submissions Section Table */}
+              {selectedAssignmentId && selectedAss && (
+                <div className="modern-card animate-in slide-in-from-bottom duration-300" style={{ marginTop: "24px", padding: "24px", backgroundColor: "#fff", border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "24px", display: "block" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: "15px", fontWeight: "900", color: "var(--db-text-primary)", textTransform: "uppercase" }}>
+                        Submissions for: <span style={{ color: "var(--db-accent-orange)" }}>{selectedAss.title}</span>
+                      </h4>
+                      <span style={{ fontSize: "11px", color: "var(--db-text-muted)", fontWeight: "600" }}>
+                        Showing {selectedAssSubs.length} submissions
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setSelectedAssignmentId("")}
+                      style={{ padding: "6px 12px", background: "#f1f5f9", border: "none", borderRadius: "8px", fontSize: "11px", fontWeight: "800", cursor: "pointer", color: "#64748b" }}
+                    >
+                      ✕ Close Panel
+                    </button>
+                  </div>
+
+                  <div className="table-responsive" style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
+                      <thead>
+                        <tr style={{ borderBottom: "2px solid #f1f5f9", color: "var(--db-text-muted)" }}>
+                          <th style={{ padding: "12px 8px", fontWeight: "800" }}>Student Details</th>
+                          <th style={{ padding: "12px 8px", fontWeight: "800" }}>Artifact Links</th>
+                          <th style={{ padding: "12px 8px", fontWeight: "800" }}>Submitted At</th>
+                          <th style={{ padding: "12px 8px", fontWeight: "800" }}>Status</th>
+                          <th style={{ padding: "12px 8px", fontWeight: "800" }}>Feedback</th>
+                          <th style={{ padding: "12px 8px", fontWeight: "800", textAlign: "right" }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedAssSubs.length > 0 ? (
+                          selectedAssSubs.map((sub: any) => {
+                            const student = students.find(s => s.id === sub.student_id) || {};
+                            const isGraded = sub.marks_obtained !== null && sub.marks_obtained !== undefined;
+
+                            return (
+                              <tr key={sub.id} style={{ borderBottom: "1.5px solid #f8fafc" }}>
+                                <td style={{ padding: "12px 8px" }}>
+                                  <div style={{ fontWeight: "750", color: "var(--db-text-primary)" }}>{student.name || "Unknown student"}</div>
+                                  <div style={{ fontSize: "10px", color: "var(--db-text-muted)" }}>#{student.enrollment_number || student.enrollmentNumber}</div>
+                                </td>
+                                <td style={{ padding: "12px 8px" }}>
+                                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                                    {sub.repo_url && (
+                                      <a href={sub.repo_url} target="_blank" rel="noopener noreferrer" style={{ padding: "4px 8px", background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "6px", display: "flex", alignItems: "center", gap: "4px", textDecoration: "none", color: "#000", fontWeight: "700", fontSize: "10px" }}>
+                                        📁 Repo
+                                      </a>
+                                    )}
+                                    {sub.live_url && (
+                                      <a href={sub.live_url} target="_blank" rel="noopener noreferrer" style={{ padding: "4px 8px", background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "6px", display: "flex", alignItems: "center", gap: "4px", textDecoration: "none", color: "#000", fontWeight: "700", fontSize: "10px" }}>
+                                        🔗 Live
+                                      </a>
+                                    )}
+                                  </div>
+                                </td>
+                                <td style={{ padding: "12px 8px", color: "var(--db-text-muted)" }}>
+                                  {new Date(sub.submitted_at).toLocaleString()}
+                                </td>
+                                <td style={{ padding: "12px 8px" }}>
+                                  {isGraded ? (
+                                    <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--db-accent-green)", backgroundColor: "rgba(16,185,129,0.1)", padding: "2px 8px", borderRadius: "12px" }}>
+                                      Reviewed ({sub.marks_obtained}/{selectedAss.max_marks || 10})
+                                    </span>
+                                  ) : (
+                                    <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--db-accent-orange)", backgroundColor: "rgba(249,115,22,0.1)", padding: "2px 8px", borderRadius: "12px" }}>
+                                      Pending Review
+                                    </span>
+                                  )}
+                                </td>
+                                <td style={{ padding: "12px 8px", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--db-text-secondary)" }}>
+                                  {sub.mentor_feedback ? (
+                                    <span title={sub.mentor_feedback}>{sub.mentor_feedback}</span>
+                                  ) : (
+                                    <span style={{ fontStyle: "italic", color: "var(--db-text-muted)" }}>No feedback yet</span>
+                                  )}
+                                </td>
+                                <td style={{ padding: "12px 8px", textAlign: "right" }}>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedSubId(sub.id);
+                                      setGradingSubmission({ ...sub, studentName: student.name, studentEnroll: student.enrollment_number || student.enrollmentNumber, studentEmail: student.email });
+                                      setGradeMarks(sub.marks_obtained !== null && sub.marks_obtained !== undefined ? String(sub.marks_obtained) : "");
+                                      setGradeFeedback(sub.mentor_feedback || "");
+                                      setManualBonusXp("0");
+                                    }}
+                                    className="explore-btn"
+                                    style={{ padding: "6px 12px", height: "30px", fontSize: "10px", fontWeight: "800", borderRadius: "8px" }}
+                                  >
+                                    ✏️ {isGraded ? "Edit Grade" : "Grade"}
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        ) : (
+                          <tr>
+                            <td colSpan={6} style={{ padding: "24px", textAlign: "center", color: "var(--db-text-muted)" }}>
+                              No submissions received for this assignment yet.
+                            </td>
+                          </tr>
                         )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Grading Modal Overlay */}
+              {selectedSubId && gradingSubmission && (
+                <div style={{
+                  position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+                  backgroundColor: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)",
+                  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000
+                }}>
+                  <form onSubmit={handleEvaluate} className="modern-card animate-in scale-in duration-200" style={{
+                    backgroundColor: "#fff", border: "none", borderRadius: "28px",
+                    width: "100%", maxWidth: "500px", padding: "32px", boxShadow: "0 24px 64px rgba(15,23,42,0.15)",
+                    display: "flex", flexDirection: "column", gap: "20px", color: "var(--db-text-primary)"
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "900", textTransform: "uppercase", letterSpacing: "0.5px", color: "#1e293b", display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span>📝</span> Grade Submission
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedSubId(""); setGradingSubmission(null); }}
+                        style={{ background: "#f1f5f9", border: "none", width: "28px", height: "28px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", cursor: "pointer", color: "#64748b", fontWeight: "bold" }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {/* Student details */}
+                    <div style={{ background: "linear-gradient(135deg, #f8fafc, #f1f5f9)", borderRadius: "16px", padding: "16px", display: "flex", alignItems: "center", gap: "12px", border: "1px solid rgba(0,0,0,0.03)" }}>
+                      <div style={{ width: "40px", height: "40px", borderRadius: "50%", backgroundColor: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px" }}>
+                        👤
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: "800", fontSize: "15px", color: "#0f172a" }}>{gradingSubmission.studentName}</div>
+                        <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>
+                          <span style={{ background: "#eaeaea", padding: "2px 6px", borderRadius: "6px", fontWeight: "800", marginRight: "4px" }}>{gradingSubmission.studentEnroll}</span>
+                          {gradingSubmission.studentEmail}
+                        </div>
                       </div>
                     </div>
 
-                    <div>
-                      <label style={{ fontSize: "11px", fontWeight: "800", display: "block", marginBottom: "6px", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Description*</label>
-                      <textarea required value={newAssDesc} onChange={(e) => setNewAssDesc(e.target.value)}
-                        placeholder="Add assignment rubrics, criteria, and instructions…" className="form-input-text" style={{ background: "#fff", border: "1px solid #d1d5db", color: "#000", outline: "none", borderRadius: "10px", padding: "10px 12px", minHeight: "80px", width: "100%", fontFamily: "inherit" }} />
+                    {/* Submitted details */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px", background: "#f8fafc", border: "1.5px solid #f1f5f9", borderRadius: "16px", padding: "16px" }}>
+                      <span style={{ fontSize: "10px", fontWeight: "800", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>Submitted Artifacts</span>
+                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "2px" }}>
+                        {gradingSubmission.repo_url && (
+                          <a href={gradingSubmission.repo_url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", padding: "8px 16px", background: "#f1f5f9", border: "1.5px solid #e2e8f0", color: "#1e293b", borderRadius: "10px", fontSize: "11px", fontWeight: "800", display: "flex", alignItems: "center", gap: "6px", transition: "transform 0.15s" }}>
+                            💻 GitHub Repo
+                          </a>
+                        )}
+                        {gradingSubmission.live_url && (
+                          <a href={gradingSubmission.live_url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", padding: "8px 16px", background: "var(--db-accent-orange)", color: "#fff", borderRadius: "10px", fontSize: "11px", fontWeight: "800", display: "flex", alignItems: "center", gap: "6px", transition: "transform 0.15s" }}>
+                            🔗 Live Preview
+                          </a>
+                        )}
+                      </div>
+                      <div style={{ fontSize: "10px", color: "#94a3b8", marginTop: "4px", display: "flex", alignItems: "center", gap: "4px" }}>
+                        <span>📅</span> Submitted: {new Date(gradingSubmission.submitted_at).toLocaleString()}
+                      </div>
                     </div>
 
-                    <button type="submit" disabled={creatingAss || (!reqLiveUrl && !reqGithubLink && !reqAttachment)} className="explore-btn" style={{ width: "100%", padding: "12px", borderRadius: "12px", fontWeight: "800" }}>
-                      {creatingAss ? "Creating…" : "Publish Assignment"}
+                    {/* Marks & Bonus XP */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                      <div>
+                        <label style={{ fontSize: "10px", fontWeight: "800", color: "#64748b", display: "block", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Marks (out of {selectedAss?.max_marks || 10})*</label>
+                        <input
+                          type="number"
+                          required
+                          min="0"
+                          max={selectedAss?.max_marks || 10}
+                          value={gradeMarks}
+                          onChange={(e) => setGradeMarks(e.target.value)}
+                          className="form-input-text"
+                          style={{ background: "#f8fafc", border: "1.5px solid #cbd5e1", borderRadius: "12px", padding: "10px 14px", width: "100%", outline: "none", fontSize: "13px", fontWeight: "700" }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "10px", fontWeight: "800", color: "#64748b", display: "block", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Additional Bonus XP</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={manualBonusXp}
+                          onChange={(e) => setManualBonusXp(e.target.value)}
+                          className="form-input-text"
+                          style={{ background: "#f8fafc", border: "1.5px solid #cbd5e1", borderRadius: "12px", padding: "10px 14px", width: "100%", outline: "none", fontSize: "13px", fontWeight: "700" }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Feedback with quick chips */}
+                    <div>
+                      <label style={{ fontSize: "10px", fontWeight: "800", color: "#64748b", display: "block", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Mentor Feedback</label>
+                      <textarea
+                        value={gradeFeedback}
+                        onChange={(e) => setGradeFeedback(e.target.value)}
+                        placeholder="Provide constructive feedback here..."
+                        className="form-input-text"
+                        style={{ background: "#f8fafc", border: "1.5px solid #cbd5e1", borderRadius: "12px", padding: "10px 14px", minHeight: "80px", width: "100%", fontFamily: "inherit", outline: "none", fontSize: "13px", resize: "vertical" }}
+                      />
+                      
+                      {/* Quick feedback chips */}
+                      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "10px" }}>
+                        {[
+                          "Excellent Work", "Good Repository", "Clean Code",
+                          "Improve README", "Add Comments", "Complete Submission"
+                        ].map(chip => (
+                          <button
+                            key={chip}
+                            type="button"
+                            onClick={() => setGradeFeedback(prev => prev ? `${prev}. ${chip}.` : `${chip}.`)}
+                            style={{
+                              background: "#f1f5f9", border: "none",
+                              borderRadius: "20px", padding: "6px 12px", fontSize: "10px",
+                              fontWeight: "750", cursor: "pointer", color: "#475569",
+                              transition: "all 0.15s"
+                            }}
+                            className="quick-action-btn"
+                          >
+                            ➕ {chip}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={grading}
+                      className="explore-btn"
+                      style={{ width: "100%", padding: "12px", borderRadius: "14px", fontWeight: "800", height: "48px", background: "var(--db-accent-yellow)", color: "#000", border: "none", fontSize: "13px", boxShadow: "0 4px 12px rgba(251, 191, 36, 0.25)", cursor: "pointer", transition: "transform 0.15s" }}
+                    >
+                      {grading ? "Saving evaluation…" : "Publish Grade & Award XP"}
                     </button>
-                  </div>
-                </form>
-              </div>
+                  </form>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
         {currentTab === "leaderboard" && (() => {
-          // Pre-sorting leaderboard students
+          const getStudentAttendance = (student: any) => {
+            if (!student) return { presentDaysCount: 0, percentage: 0 };
+            const enroll = (student?.enrollment_number || student?.enrollmentNumber || "").trim().toUpperCase();
+            const sReport = report?.students?.find((rs: any) => (rs.enrollmentNumber || "").trim().toUpperCase() === enroll);
+            const presentDaysCount = sReport?.presentDays?.length || 0;
+            const percentage = WORKSHOP_DAYS > 0 ? Math.round((presentDaysCount / WORKSHOP_DAYS) * 100) : 0;
+            return { presentDaysCount, percentage };
+          };
+
+          // Pre-sorting leaderboard students (breaking ties with attendance)
           const sortedLeaderboard = students
             .slice()
-            .sort((a: any, b: any) => (b.total_xp || 0) - (a.total_xp || 0));
+            .sort((a: any, b: any) => {
+              const xpDiff = (b.total_xp || 0) - (a.total_xp || 0);
+              if (xpDiff !== 0) return xpDiff;
+              const attA = getStudentAttendance(a).presentDaysCount;
+              const attB = getStudentAttendance(b).presentDaysCount;
+              return attB - attA;
+            });
 
           const filteredLeaderboard = sortedLeaderboard.filter((s: any) => {
             const query = leaderboardSearch.toLowerCase().trim();
@@ -1974,14 +2635,6 @@ export default function AdminDashboardPage() {
           const top2 = showPodium && sortedLeaderboard.length >= 2 ? sortedLeaderboard[1] : null;
           const top3 = showPodium && sortedLeaderboard.length >= 3 ? sortedLeaderboard[2] : null;
 
-          const getStudentAttendance = (student: any) => {
-            const enroll = (student?.enrollment_number || student?.enrollmentNumber || "").trim().toUpperCase();
-            const sReport = report?.students?.find((rs: any) => (rs.enrollmentNumber || "").trim().toUpperCase() === enroll);
-            const presentDaysCount = sReport?.presentDays?.length || 0;
-            const percentage = WORKSHOP_DAYS > 0 ? Math.round((presentDaysCount / WORKSHOP_DAYS) * 100) : 0;
-            return { presentDaysCount, percentage };
-          };
-
           return (
             <div className="db-projects-section animate-in fade-in duration-300">
               <style dangerouslySetInnerHTML={{ __html: `
@@ -1994,8 +2647,8 @@ export default function AdminDashboardPage() {
                   padding-top: 10px;
                 }
                 .podium-card {
-                  background: #151304;
-                  border-radius: 20px;
+                  background: #ffffff;
+                  border-radius: 24px;
                   padding: 24px 16px;
                   flex: 1;
                   min-width: 200px;
@@ -2005,18 +2658,18 @@ export default function AdminDashboardPage() {
                   align-items: center;
                   text-align: center;
                   position: relative;
-                  border: 1.5px solid rgba(255, 212, 70, 0.12);
-                  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+                  border: 1.5px solid rgba(0, 0, 0, 0.06);
+                  box-shadow: 0 8px 32px rgba(0,0,0,0.05);
                   transition: transform 0.2s, box-shadow 0.2s;
                 }
                 .podium-card:hover {
                   transform: translateY(-4px);
-                  box-shadow: 0 15px 40px rgba(255, 212, 70, 0.15);
+                  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
                 }
                 .podium-card.rank-1 {
                   border: 2px solid #FFD446;
-                  box-shadow: 0 0 25px rgba(255, 212, 70, 0.2);
-                  background: linear-gradient(180deg, #221d05 0%, #151304 100%);
+                  box-shadow: 0 10px 30px rgba(255, 212, 70, 0.15);
+                  background: linear-gradient(180deg, #fffdf2 0%, #ffffff 100%);
                   z-index: 2;
                   transform: scale(1.05) translateY(-8px);
                 }
@@ -2025,12 +2678,12 @@ export default function AdminDashboardPage() {
                 }
                 .podium-card.rank-2 {
                   border: 2px solid #C0C0C0;
-                  background: linear-gradient(180deg, #1b1c1d 0%, #151304 100%);
+                  background: linear-gradient(180deg, #fafafa 0%, #ffffff 100%);
                   z-index: 1;
                 }
                 .podium-card.rank-3 {
                   border: 2px solid #CD7F32;
-                  background: linear-gradient(180deg, #1f1611 0%, #151304 100%);
+                  background: linear-gradient(180deg, #fffcf9 0%, #ffffff 100%);
                   z-index: 1;
                 }
                 .podium-badge {
@@ -2044,7 +2697,7 @@ export default function AdminDashboardPage() {
                   font-weight: 900;
                   color: #fff;
                   margin-bottom: 12px;
-                  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+                  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
                 }
                 .podium-card.rank-1 .podium-badge {
                   background: linear-gradient(135deg, #FFD446, #FFA800);
@@ -2060,7 +2713,7 @@ export default function AdminDashboardPage() {
                 .podium-name {
                   font-size: 15px;
                   font-weight: 750;
-                  color: #fff;
+                  color: var(--db-text-primary);
                   margin-bottom: 4px;
                   text-overflow: ellipsis;
                   overflow: hidden;
@@ -2069,7 +2722,7 @@ export default function AdminDashboardPage() {
                 }
                 .podium-meta {
                   font-size: 11px;
-                  color: #a5a5b5;
+                  color: var(--db-text-muted);
                   margin-bottom: 10px;
                 }
                 .podium-xp {
@@ -2077,7 +2730,7 @@ export default function AdminDashboardPage() {
                   font-weight: 800;
                   color: #FFD446;
                   margin-bottom: 16px;
-                  text-shadow: 0 0 10px rgba(255,212,70,0.25);
+                  text-shadow: 0 0 10px rgba(255,212,70,0.15);
                 }
                 .podium-actions {
                   display: flex;
@@ -2103,9 +2756,9 @@ export default function AdminDashboardPage() {
                   gap: 10px;
                 }
                 .dark-leaderboard-row {
-                  background: #151304;
-                  border: 1.5px solid rgba(255, 255, 255, 0.05);
-                  border-radius: 18px;
+                  background: #ffffff;
+                  border: 1.5px solid rgba(0, 0, 0, 0.06);
+                  border-radius: 24px;
                   padding: 14px 20px;
                   display: flex;
                   align-items: center;
@@ -2114,19 +2767,19 @@ export default function AdminDashboardPage() {
                 }
                 .dark-leaderboard-row:hover {
                   border-color: rgba(255, 212, 70, 0.25);
-                  background: #1c1a06;
+                  background: #fbfbfd;
                 }
                 .dark-leaderboard-row.rank-1 {
                   border-color: rgba(255, 212, 70, 0.35);
-                  background: linear-gradient(90deg, #221d05 0%, #151304 100%);
+                  background: linear-gradient(90deg, #fffdf2 0%, #ffffff 100%);
                 }
                 .dark-leaderboard-row.rank-2 {
                   border-color: rgba(192, 192, 192, 0.25);
-                  background: linear-gradient(90deg, #1b1c1d 0%, #151304 100%);
+                  background: linear-gradient(90deg, #fafafa 0%, #ffffff 100%);
                 }
                 .dark-leaderboard-row.rank-3 {
                   border-color: rgba(205, 127, 50, 0.25);
-                  background: linear-gradient(90deg, #1f1611 0%, #151304 100%);
+                  background: linear-gradient(90deg, #fffbf9 0%, #ffffff 100%);
                 }
                 .row-rank-badge {
                   width: 32px;
@@ -2152,18 +2805,18 @@ export default function AdminDashboardPage() {
                   color: #fff;
                 }
                 .row-rank-other .row-rank-badge {
-                  background: rgba(255, 255, 255, 0.04);
-                  color: #a5a5b5;
-                  border: 1.5px solid rgba(255,255,255,0.06);
+                  background: rgba(0, 0, 0, 0.04);
+                  color: var(--db-text-muted);
+                  border: 1.5px solid rgba(0,0,0,0.06);
                 }
                 .row-name {
                   font-size: 14px;
                   font-weight: 700;
-                  color: #fff;
+                  color: var(--db-text-primary);
                 }
                 .row-meta {
                   font-size: 11px;
-                  color: #a5a5b5;
+                  color: var(--db-text-muted);
                 }
                 .row-xp {
                   font-size: 16px;
@@ -2175,9 +2828,9 @@ export default function AdminDashboardPage() {
                   width: 32px;
                   height: 32px;
                   border-radius: 50%;
-                  border: 1px solid rgba(255, 255, 255, 0.08);
-                  background: rgba(255, 255, 255, 0.02);
-                  color: #fff;
+                  border: 1px solid rgba(0, 0, 0, 0.08);
+                  background: rgba(0, 0, 0, 0.02);
+                  color: var(--db-text-primary);
                   display: flex;
                   align-items: center;
                   justify-content: center;
@@ -2390,44 +3043,117 @@ export default function AdminDashboardPage() {
         })()}
 
         {/* ======= TAB: STUDENTS ======= */}
-        {currentTab === "students" && (
-          <div className="db-projects-section">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <h3 className="db-section-title" style={{ margin: 0 }}>Registered Students ({students.length})</h3>
-              <input
-                type="text"
-                placeholder="Search by name or enrollment…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="form-input-text"
-                style={{ maxWidth: "260px", margin: 0 }}
-              />
-            </div>
-            <div className="db-project-list">
-              {loadingStudents ? <LoadingSpinner label="Loading students…" /> :
-                studentsError ? <div className="db-project-row" style={{ color: "var(--colors--coral)" }}>{studentsError}</div> :
-                filteredStudents.length > 0 ? filteredStudents.map((s: any) => {
-                  const enroll = s.enrollmentNumber || s.enrollment_number || "";
-                  const attCount = submissions.filter(sub => sub.student_id === enroll).length;
-                  return (
-                    <div className="db-project-row" key={s.id || enroll} style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                      <div className="db-project-icon" style={{ fontWeight: "bold", fontSize: "20px" }}>👤</div>
-                      <div style={{ flex: 1 }}>
-                        <h4 className="db-project-name">{s.name}</h4>
-                        <span className="db-project-url">
-                          #{INSTITUTION_CODE}-{enroll} · {s.email || "—"}
-                        </span>
+        {currentTab === "students" && (() => {
+          const avgXp = students.length > 0 
+            ? Math.round(students.reduce((sum, s) => sum + Number(s.total_xp || 0), 0) / students.length) 
+            : 0;
+          const sortedByXp = [...students].sort((a, b) => Number(b.total_xp || 0) - Number(a.total_xp || 0));
+          const topPerformer = sortedByXp[0] || null;
+
+          return (
+            <div className="db-projects-section animate-in fade-in duration-300">
+              {/* Summary Cards */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+                <div className="stat-card-modern" style={{ background: "#fff", border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "20px", padding: "20px" }}>
+                  <span style={{ fontSize: "11px", fontWeight: "800", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Registered Students</span>
+                  <div style={{ fontSize: "28px", fontWeight: "900", color: "var(--db-text-primary)", marginTop: "4px" }}>{students.length}</div>
+                </div>
+                <div className="stat-card-modern" style={{ background: "#fff", border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "20px", padding: "20px" }}>
+                  <span style={{ fontSize: "11px", fontWeight: "800", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Average Student XP</span>
+                  <div style={{ fontSize: "28px", fontWeight: "900", color: "var(--db-accent-orange)", marginTop: "4px" }}>{avgXp} XP</div>
+                </div>
+                <div className="stat-card-modern" style={{ background: "#fff", border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "20px", padding: "20px" }}>
+                  <span style={{ fontSize: "11px", fontWeight: "800", color: "var(--db-text-muted)", textTransform: "uppercase" }}>👑 Top Performer</span>
+                  <div style={{ fontSize: "18px", fontWeight: "900", color: "var(--db-accent-green)", marginTop: "10px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {topPerformer ? `${topPerformer.name} (${topPerformer.total_xp || 0} XP)` : "—"}
+                  </div>
+                </div>
+              </div>
+
+              {/* Roster Controls */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
+                <h3 className="db-section-title" style={{ margin: 0 }}>Student Roster Directory</h3>
+                <input
+                  type="text"
+                  placeholder="Search by name or enrollment…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="form-input-text"
+                  style={{ maxWidth: "260px", margin: 0, padding: "8px 12px", borderRadius: "8px", border: "1.5px solid #eaeaea", outline: "none", fontSize: "12px" }}
+                />
+              </div>
+
+              {/* Roster List */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {loadingStudents ? <LoadingSpinner label="Loading students roster…" /> :
+                  studentsError ? <div className="db-project-row" style={{ color: "var(--colors--coral)" }}>{studentsError}</div> :
+                  filteredStudents.length > 0 ? filteredStudents.map((s: any) => {
+                    const enroll = s.enrollmentNumber || s.enrollment_number || "";
+                    const normalizedEnroll = enroll.trim().toUpperCase();
+                    
+                    // Fetch attendance days count
+                    const sReport = report?.students?.find((rs: any) => (rs.enrollmentNumber || "").trim().toUpperCase() === normalizedEnroll);
+                    const attCount = sReport?.presentDays?.length || 0;
+                    
+                    // Fetch submissions count
+                    const subCount = submissions.filter((sub: any) => (sub.student_id || "").trim().toUpperCase() === normalizedEnroll).length;
+                    
+                    // Initials for avatar
+                    const initials = s.name ? s.name.split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase() : "👤";
+
+                    return (
+                      <div className="modern-card animate-in fade-in duration-200" key={s.id || enroll} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 24px", backgroundColor: "#fff", border: "1.5px solid rgba(0,0,0,0.05)", borderRadius: "20px", gap: "16px", flexWrap: "wrap" }}>
+                        {/* Left: Avatar & Info */}
+                        <div style={{ display: "flex", alignItems: "center", gap: "16px", flex: 1, minWidth: "240px" }}>
+                          <div style={{ width: "42px", height: "42px", borderRadius: "50%", backgroundColor: "rgba(30,58,138,0.05)", color: "var(--db-text-primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", fontWeight: "900", border: "1px solid rgba(30,58,138,0.1)" }}>
+                            {initials}
+                          </div>
+                          <div>
+                            <h4 style={{ margin: 0, fontSize: "14px", fontWeight: "800", color: "#0f172a" }}>{s.name}</h4>
+                            <div style={{ fontSize: "11px", color: "var(--db-text-muted)", marginTop: "2px", display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
+                              <span style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: "6px", fontWeight: "850", color: "#475569" }}>#{enroll}</span>
+                              <span>{s.email}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Middle: Stats */}
+                        <div style={{ display: "flex", gap: "24px", flexWrap: "wrap", alignItems: "center" }}>
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ fontSize: "13px", fontWeight: "900", color: "var(--db-text-primary)" }}>{s.branch || "N/A"}</div>
+                            <div style={{ fontSize: "9px", color: "var(--db-text-muted)", fontWeight: "800", textTransform: "uppercase", marginTop: "2px" }}>Branch</div>
+                          </div>
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ fontSize: "13px", fontWeight: "900", color: "var(--db-text-primary)" }}>{attCount}/7</div>
+                            <div style={{ fontSize: "9px", color: "var(--db-text-muted)", fontWeight: "800", textTransform: "uppercase", marginTop: "2px" }}>Attendance</div>
+                          </div>
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ fontSize: "13px", fontWeight: "900", color: "var(--db-text-primary)" }}>{subCount} Done</div>
+                            <div style={{ fontSize: "9px", color: "var(--db-text-muted)", fontWeight: "800", textTransform: "uppercase", marginTop: "2px" }}>Submissions</div>
+                          </div>
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ fontSize: "11px", background: "var(--db-accent-yellow)", color: "#000", padding: "4px 10px", borderRadius: "20px", fontWeight: "900" }}>{s.total_xp || 0} XP</div>
+                            <div style={{ fontSize: "9px", color: "var(--db-text-muted)", fontWeight: "800", textTransform: "uppercase", marginTop: "2px" }}>Points</div>
+                          </div>
+                        </div>
+
+                        {/* Right: Actions */}
+                        <div>
+                          <button
+                            onClick={() => loadXpHistory(s)}
+                            className="explore-btn"
+                            style={{ padding: "8px 16px", borderRadius: "10px", fontSize: "11px", fontWeight: "800", height: "36px", display: "flex", alignItems: "center", gap: "6px" }}
+                          >
+                            📜 History
+                          </button>
+                        </div>
                       </div>
-                      <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
-                        <span className="db-activity-badge" style={{ backgroundColor: "#f7f6f1" }}>{s.branch || UNKNOWN_BRANCH_LABEL}</span>
-                        <span className="db-sidebar-xp-badge">{s.total_xp || 0} XP</span>
-                      </div>
-                    </div>
-                  );
-                }) : <div className="db-project-row">No students match your query.</div>}
+                    );
+                  }) : <div className="db-project-row">No students match your query.</div>}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ======= TAB: PROFILE ======= */}
         {currentTab === "profile" && (

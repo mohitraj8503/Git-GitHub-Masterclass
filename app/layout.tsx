@@ -27,6 +27,7 @@ const barlowCondensed = Barlow_Condensed({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://github-masterclass.azurewebsites.net'),
   title: "Git & GitHub Masterclass — 7-Day Hands-On Workshop",
   description:
     "A 7-day hands-on Git & GitHub workshop organized by the Microsoft Learn Student Ambassador program at Arka Jain University.",
@@ -72,14 +73,7 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Anton&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap"
           rel="stylesheet"
         />
-        <script dangerouslySetInnerHTML={{ __html: `
-          if (typeof window !== 'undefined' && navigator.userAgent.indexOf('Windows') !== -1) {
-            document.documentElement.style.transformOrigin = 'top left';
-            document.documentElement.style.transform = 'scale(0.8)';
-            document.documentElement.style.width = '125%';
-            document.documentElement.style.setProperty('--zoom-level', '0.8');
-          }
-        `}} />
+
       </head>
       <body>
         <AuthProvider>

@@ -92,9 +92,36 @@ export default function DashboardPage() {
   const [selectedPeer, setSelectedPeer] = useState<any>(null);
   const [peerPhoto, setPeerPhoto] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [leaderboardSearch, setLeaderboardSearch] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
+
+  // Gamification States
+  const [dailyChecklist, setDailyChecklist] = useState<any[]>([]);
+  const [perfectDayClaimed, setPerfectDayClaimed] = useState(false);
+  const [unlockedBadges, setUnlockedBadges] = useState<string[]>([]);
+  const [floatingXps, setFloatingXps] = useState<Array<{ id: number; text: string; x: number; y: number }>>([]);
+  const [unlockedBadgeModal, setUnlockedBadgeModal] = useState<any>(null);
+
+  // Floating XP trigger
+  const triggerFloatingXp = useCallback((amount: number, label: string) => {
+    const id = Date.now() + Math.random();
+    const text = `+${amount} XP${label ? ` (${label})` : ""}`;
+    const x = window.innerWidth / 2 + (Math.random() - 0.5) * 120;
+    const y = window.innerHeight / 2 + (Math.random() - 0.5) * 120;
+    
+    setFloatingXps(prev => [...prev, { id, text, x, y }]);
+    setTimeout(() => {
+      setFloatingXps(prev => prev.filter(item => item.id !== id));
+    }, 2000);
+
+    if (amount >= 20) {
+      import("canvas-confetti").then(confetti => {
+        confetti.default({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
+      }).catch(err => console.warn(err));
+    }
+  }, []);
 
   // Initialize notification read timestamp
   useEffect(() => {
@@ -290,7 +317,7 @@ export default function DashboardPage() {
   const loadLmsData = useCallback(async () => {
     if (!registeredUser) return;
     try {
-      const [annRes, assRes, subRes, attRes, peerRes, resRes, taskRes] = await Promise.all([
+      const [annRes, assRes, subRes, attRes, peerRes, resRes, taskRes, dailyRes] = await Promise.all([
         fetch("/api/announcements").then((r) => r.json()),
         fetch("/api/assignments").then((r) => r.json()),
         fetch(`/api/submissions?student_id=${registeredUser.enrollmentNumber}`).then((r) => r.json()),
@@ -298,6 +325,7 @@ export default function DashboardPage() {
         fetch("/api/register").then((r) => r.json()),
         fetch("/api/resources").then((r) => r.json()),
         fetch(`/api/tasks/complete?enrollmentNumber=${encodeURIComponent(registeredUser.enrollmentNumber)}`).then((r) => r.json()),
+        fetch(`/api/daily-tasks?enrollment_number=${encodeURIComponent(registeredUser.enrollmentNumber)}`).then((r) => r.json()),
       ]);
 
       if (annRes.success) setAnnouncements(annRes.announcements);
@@ -321,6 +349,7 @@ export default function DashboardPage() {
             yearOfStudy: currentRecord.yearOfStudy || currentRecord.year_of_study,
             phoneNumber: currentRecord.phoneNumber || currentRecord.phone_number,
             githubUsername: currentRecord.githubUsername || currentRecord.github_username || registeredUser.githubUsername,
+            total_xp: currentRecord.total_xp || currentRecord.totalXp || 0,
           };
           // Only update if something actually changed to avoid infinite loop
           if (
@@ -329,7 +358,8 @@ export default function DashboardPage() {
             registeredUser.yearOfStudy !== updatedUser.yearOfStudy ||
             registeredUser.email !== updatedUser.email ||
             registeredUser.phoneNumber !== updatedUser.phoneNumber ||
-            registeredUser.githubUsername !== updatedUser.githubUsername
+            registeredUser.githubUsername !== updatedUser.githubUsername ||
+            registeredUser.total_xp !== updatedUser.total_xp
           ) {
             setRegisteredUser(updatedUser);
             localStorage.setItem("user_registration", JSON.stringify(updatedUser));
@@ -338,6 +368,11 @@ export default function DashboardPage() {
       }
       if (resRes.success) setResources(resRes.resources || []);
       if (taskRes.success) setCompletedTaskIds(taskRes.completions || []);
+      if (dailyRes.success) {
+        setDailyChecklist(dailyRes.checklist || []);
+        setPerfectDayClaimed(dailyRes.perfectDayClaimed);
+        setUnlockedBadges(dailyRes.unlockedBadges || []);
+      }
     } catch (e) {
       console.error("Failed to load dashboard data:", e);
     }
@@ -384,6 +419,28 @@ export default function DashboardPage() {
     const current = `${profileBio}|${profileGithub}|${profileLinkedin}`;
     setIsDirty(current !== initialSnapshot || !!photoFile);
   }, [profileBio, profileGithub, profileLinkedin, photoFile, initialSnapshot]);
+
+  // Trigger daily login reward
+  useEffect(() => {
+    if (registeredUser?.enrollmentNumber) {
+      fetch("/api/daily-tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enrollment_number: registeredUser.enrollmentNumber,
+          task_id: "daily_login"
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && !data.alreadyCompleted) {
+          triggerFloatingXp(5, "Daily Login Bonus! 🎉");
+          loadLmsData();
+        }
+      })
+      .catch(err => console.error("Daily login reward fail:", err));
+    }
+  }, [registeredUser, triggerFloatingXp, loadLmsData]);
 
   const validateGithub = (value: string): string | undefined => {
     const v = value.trim();
@@ -754,7 +811,10 @@ export default function DashboardPage() {
     }
   }
 
-  const leaderboard = Array.from(leaderboardMap.values()).sort((a, b) => b.xp - a.xp);
+  const leaderboard = Array.from(leaderboardMap.values()).sort((a, b) => {
+    if (b.xp !== a.xp) return b.xp - a.xp;
+    return (b.attendanceCount || 0) - (a.attendanceCount || 0);
+  });
 
   const notifications = [
     ...assignments.map((a: any) => ({
@@ -809,7 +869,7 @@ export default function DashboardPage() {
     <div className="dashboard-view">
       {/* Panel 1: Sidebar */}
       <aside className="db-sidebar">
-        <a href="#" className="db-sidebar-logo-section" onClick={(e) => { e.preventDefault(); setCurrentTab("home"); }}>
+        <a href="/" className="db-sidebar-logo-section">
           <div className="db-sidebar-logo-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '26px', height: '26px', color: '#ffffff' }}>
               <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
@@ -1325,35 +1385,57 @@ export default function DashboardPage() {
                   </div>
 
                   {/* Countdown timer to fill height cleanly */}
-                  <div className="event-countdown-wrapper" style={{
-                    background: "rgba(255, 255, 255, 0.45)",
-                    border: "1px solid rgba(255, 255, 255, 0.6)",
-                    borderRadius: "16px",
-                    padding: "14px 18px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "8px",
-                    marginTop: "4px",
-                    marginBottom: "4px"
-                  }}>
-                    <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--db-text-muted)", letterSpacing: "1px", textTransform: "uppercase" }}>STARTS IN</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <div style={{ textAlign: "center" }}>
-                        <div style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 12px", fontSize: "20px", fontWeight: "900", color: "var(--db-text-primary)", minWidth: "28px", lineHeight: 1 }}>03</div>
-                        <div style={{ fontSize: "9px", fontWeight: "700", color: "var(--db-text-muted)", marginTop: "4px", textTransform: "uppercase" }}>Days</div>
+                  {(() => {
+                    const targetTime = new Date("2026-07-15T12:30:00").getTime();
+                    const diffMs = targetTime - nowTs;
+                    let days = 0;
+                    let hours = 0;
+                    let mins = 0;
+                    if (diffMs > 0) {
+                      days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                      hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                      mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                    }
+                    const padZero = (n: number) => String(n).padStart(2, "0");
+
+                    return (
+                      <div className="event-countdown-wrapper" style={{
+                        background: "rgba(255, 255, 255, 0.45)",
+                        border: "1px solid rgba(255, 255, 255, 0.6)",
+                        borderRadius: "16px",
+                        padding: "14px 18px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "8px",
+                        marginTop: "4px",
+                        marginBottom: "4px"
+                      }}>
+                        <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--db-text-muted)", letterSpacing: "1px", textTransform: "uppercase" }}>STARTS IN</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 12px", fontSize: "20px", fontWeight: "900", color: "var(--db-text-primary)", minWidth: "28px", lineHeight: 1 }}>
+                              {padZero(days)}
+                            </div>
+                            <div style={{ fontSize: "9px", fontWeight: "700", color: "var(--db-text-muted)", marginTop: "4px", textTransform: "uppercase" }}>Days</div>
+                          </div>
+                          <span style={{ color: "rgba(0,0,0,0.2)", fontWeight: "900", fontSize: "18px", marginTop: "-14px" }}>:</span>
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 12px", fontSize: "20px", fontWeight: "900", color: "var(--db-text-primary)", minWidth: "28px", lineHeight: 1 }}>
+                              {padZero(hours)}
+                            </div>
+                            <div style={{ fontSize: "9px", fontWeight: "700", color: "var(--db-text-muted)", marginTop: "4px", textTransform: "uppercase" }}>Hours</div>
+                          </div>
+                          <span style={{ color: "rgba(0,0,0,0.2)", fontWeight: "900", fontSize: "18px", marginTop: "-14px" }}>:</span>
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 12px", fontSize: "20px", fontWeight: "900", color: "var(--db-text-primary)", minWidth: "28px", lineHeight: 1 }}>
+                              {padZero(mins)}
+                            </div>
+                            <div style={{ fontSize: "9px", fontWeight: "700", color: "var(--db-text-muted)", marginTop: "4px", textTransform: "uppercase" }}>Min</div>
+                          </div>
+                        </div>
                       </div>
-                      <span style={{ color: "rgba(0,0,0,0.2)", fontWeight: "900", fontSize: "18px", marginTop: "-14px" }}>:</span>
-                      <div style={{ textAlign: "center" }}>
-                        <div style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 12px", fontSize: "20px", fontWeight: "900", color: "var(--db-text-primary)", minWidth: "28px", lineHeight: 1 }}>14</div>
-                        <div style={{ fontSize: "9px", fontWeight: "700", color: "var(--db-text-muted)", marginTop: "4px", textTransform: "uppercase" }}>Hours</div>
-                      </div>
-                      <span style={{ color: "rgba(0,0,0,0.2)", fontWeight: "900", fontSize: "18px", marginTop: "-14px" }}>:</span>
-                      <div style={{ textAlign: "center" }}>
-                        <div style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 12px", fontSize: "20px", fontWeight: "900", color: "var(--db-text-primary)", minWidth: "28px", lineHeight: 1 }}>45</div>
-                        <div style={{ fontSize: "9px", fontWeight: "700", color: "var(--db-text-muted)", marginTop: "4px", textTransform: "uppercase" }}>Min</div>
-                      </div>
-                    </div>
-                  </div>
+                    );
+                  })()}
 
                   <div className="event-meta-row" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", flexWrap: "wrap", marginBottom: "4px" }}>
                     <span style={{
@@ -1437,36 +1519,114 @@ export default function DashboardPage() {
 
               {/* ======= ROW 3: Tasks | Progress Ring | Streak + Rank ======= */}
               <div className="bottom-grid">
-                {/* Col 1: Today's Tasks */}
+                {/* Col 1: Today's Tasks (Gamified Quests) */}
                 <div className="tasks-card">
-                  <div className="tasks-card-header">
-                    <h4 className="tasks-card-title">Today&apos;s Tasks</h4>
-                    <span className="tasks-card-badge">
-                      {completedTaskIds.length}/5 Done
+                  <div className="tasks-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                    <div>
+                      <h4 className="tasks-card-title" style={{ margin: 0 }}>Daily Quests</h4>
+                      {perfectDayClaimed ? (
+                        <p style={{ fontSize: "10px", color: "var(--db-accent-green)", margin: "2px 0 0 0", fontWeight: "800" }}>🏆 +50 XP Perfect Day Bonus Claimed!</p>
+                      ) : (
+                        <p style={{ fontSize: "10px", color: "var(--db-text-muted)", margin: "2px 0 0 0" }}>Complete all to earn +50 XP Perfect Day Bonus!</p>
+                      )}
+                    </div>
+                    <span className="tasks-card-badge" style={{ backgroundColor: "var(--db-accent-yellow)", color: "#000", fontWeight: "800" }}>
+                      {dailyChecklist.filter(q => q.completed).length}/{dailyChecklist.length || 6} Done
                     </span>
                   </div>
 
-                  {[
-                    { id: "mark_attendance", label: "Mark Attendance", sub: "You're marked present", pts: "+20 XP", done: completedTaskIds.includes("mark_attendance") },
-                    { id: "download_slides", label: "Download Workshop Slides", sub: "Get today's presentation", pts: "+10 XP", done: completedTaskIds.includes("download_slides") },
-                    { id: "complete_assignment", label: "Complete Assignment 1", sub: "Submit before tomorrow", pts: "+40 XP", done: completedTaskIds.includes("complete_assignment") },
-                    { id: "push_github", label: "Push Code to GitHub", sub: "Upload your repository", pts: "+20 XP", done: completedTaskIds.includes("push_github") },
-                    { id: "fill_feedback", label: "Fill Feedback Form", sub: "Help us improve", pts: "+10 XP", done: completedTaskIds.includes("fill_feedback") },
-                  ].map((task, i) => (
-                    <div className="task-item" key={i} style={{ cursor: "default" }}>
-                      <div className={`task-check${task.done ? " done" : ""}`}/>
-                      <div className="task-text-block">
-                        <span className={`task-label${task.done ? " done" : ""}`}>{task.label}</span>
-                        <span className="task-sublabel">{task.sub}</span>
+                  {(dailyChecklist.length > 0 ? dailyChecklist : [
+                    { id: "daily_login", title: "Daily Login", xp: 5, completed: true },
+                    { id: "mark_attendance", title: "Mark Attendance", xp: 20, completed: attendance.length > 0 },
+                    { id: "download_resources", title: "Download Today's Resources", xp: 10, completed: false },
+                    { id: "open_notes", title: "Open Today's Notes", xp: 5, completed: false },
+                    { id: "submit_github_repo", title: "Submit Today's GitHub Repository", xp: 30, completed: false },
+                    { id: "complete_assignment", title: "Complete Today's Assignment", xp: 50, completed: submissions.length > 0 },
+                  ]).map((quest) => {
+                    const handleQuestClick = async () => {
+                      if (quest.completed) return;
+
+                      // Navigation routes
+                      if (quest.id === "mark_attendance") {
+                        setCurrentTab("attendance");
+                        return;
+                      }
+                      if (quest.id === "complete_assignment") {
+                        setCurrentTab("assignments");
+                        return;
+                      }
+                      if (quest.id === "submit_github_repo") {
+                        setCurrentTab("profile");
+                        return;
+                      }
+
+                      // Instant actions (download, notes)
+                      try {
+                        const res = await fetch("/api/daily-tasks", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            enrollment_number: registeredUser.enrollmentNumber,
+                            task_id: quest.id
+                          })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                          triggerFloatingXp(quest.xp, quest.title);
+                          if (data.perfectDayBonus > 0) {
+                            setTimeout(() => {
+                              triggerFloatingXp(50, "Perfect Day Bonus! 🏆");
+                            }, 800);
+                          }
+                          loadLmsData();
+
+                          if (quest.id === "download_resources") {
+                            // Trigger actual download mockup or file page
+                            setCurrentTab("resources");
+                          }
+                          if (quest.id === "open_notes") {
+                            setCurrentTab("resources");
+                          }
+                        }
+                      } catch (err) {
+                        console.error("Failed to complete daily quest:", err);
+                      }
+                    };
+
+                    return (
+                      <div
+                        className={`daily-quest-item${quest.completed ? " completed" : ""}`}
+                        key={quest.id}
+                        onClick={handleQuestClick}
+                        style={{ cursor: quest.completed ? "default" : "pointer" }}
+                      >
+                        <div className="quest-chk" />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <span className="quest-label">{quest.title}</span>
+                          <div style={{ fontSize: "10px", color: "var(--db-text-muted)" }}>
+                            {quest.id === "daily_login" && "Reward for showing up today!"}
+                            {quest.id === "mark_attendance" && "Check in during your active session"}
+                            {quest.id === "download_resources" && "Click to download presentation slides"}
+                            {quest.id === "open_notes" && "Read workshop notes for today"}
+                            {quest.id === "submit_github_repo" && "Add GitHub link in profile"}
+                            {quest.id === "complete_assignment" && "Submit homework task"}
+                          </div>
+                        </div>
+                        <div style={{
+                          fontSize: "11px",
+                          fontWeight: "800",
+                          color: quest.completed ? "var(--db-text-muted)" : "var(--db-accent-green)",
+                          backgroundColor: quest.completed ? "rgba(0,0,0,0.04)" : "rgba(16,185,129,0.1)",
+                          padding: "3px 10px",
+                          borderRadius: "20px",
+                          marginLeft: "12px",
+                          flexShrink: 0
+                        }}>
+                          +{quest.xp} XP
+                        </div>
                       </div>
-                      <div className="task-pts-badge" style={{ fontSize: "11px", fontWeight: "750", color: "var(--db-accent-green)", background: "rgba(16,185,129,0.1)", padding: "2px 8px", borderRadius: "10px", marginLeft: "auto", marginRight: "8px" }}>
-                        {task.pts}
-                      </div>
-                      <div className="task-chevron">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Col 2: Your Progress (Donut Ring) */}
@@ -1752,7 +1912,8 @@ export default function DashboardPage() {
                 borderRadius: "16px",
                 border: "1px solid rgba(0,0,0,0.06)",
                 boxShadow: "var(--card-shadow)",
-                width: "100%"
+                width: "100%",
+                boxSizing: "border-box"
               }}>
                 <div style={{ fontSize: "48px", marginBottom: "16px" }}>📁</div>
                 <h4 style={{ margin: "0 0 8px", fontWeight: "700", fontSize: "18px" }}>No resources uploaded yet</h4>
@@ -1834,15 +1995,43 @@ export default function DashboardPage() {
                         <p style={{ fontSize: "14px", color: "var(--text-secondary)" }}>{ass.description}</p>
                         <p style={{ fontSize: "12px", fontWeight: "800", color: "var(--accent-orange)", marginTop: "4px" }}>📅 Due Date: {new Date(ass.due_date).toLocaleDateString()}</p>
 
-                        <div style={{ marginTop: "12px", borderTop: "1px solid rgba(0,0,0,0.05)", paddingTop: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ marginTop: "12px", borderTop: "1.5px solid rgba(0,0,0,0.06)", paddingTop: "12px" }}>
                           {sub ? (
-                            <div>
-                              <span style={{ color: "var(--accent-green)", fontWeight: "900", fontSize: "14px" }}>Submitted ✓</span>
-                              {sub.marks_obtained !== null && (
-                                <span style={{ marginLeft: "12px", fontWeight: "900" }}>Marks: {sub.marks_obtained} / {ass.max_marks}</span>
-                              )}
+                            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                {sub.marks_obtained !== null ? (
+                                  <span style={{
+                                    fontSize: "11px", fontWeight: "900", color: "#10b981",
+                                    backgroundColor: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)",
+                                    padding: "4px 10px", borderRadius: "12px", textTransform: "uppercase"
+                                  }}>
+                                    Reviewed ✅
+                                  </span>
+                                ) : (
+                                  <span style={{
+                                    fontSize: "11px", fontWeight: "900", color: "#f97316",
+                                    backgroundColor: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.3)",
+                                    padding: "4px 10px", borderRadius: "12px", textTransform: "uppercase"
+                                  }}>
+                                    Under Review ⏳
+                                  </span>
+                                )}
+
+                                {sub.marks_obtained !== null && (
+                                  <span style={{ fontWeight: "900", fontSize: "14px", color: "var(--db-text-primary)" }}>
+                                    Score: {sub.marks_obtained} / {ass.max_marks}
+                                  </span>
+                                )}
+                              </div>
+
                               {sub.mentor_feedback && (
-                                <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: "4px 0 0 0" }}>💬 Mentor Remarks: {sub.mentor_feedback}</p>
+                                <div style={{
+                                  background: "rgba(0,0,0,0.02)", border: "1px solid rgba(0,0,0,0.04)",
+                                  borderRadius: "12px", padding: "10px 14px", marginTop: "4px"
+                                }}>
+                                  <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--text-secondary)", display: "block", marginBottom: "2px", textTransform: "uppercase" }}>💬 Mentor Remarks</span>
+                                  <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0, fontStyle: "italic", lineHeight: 1.4 }}>"{sub.mentor_feedback}"</p>
+                                </div>
                               )}
                             </div>
                           ) : (
@@ -1965,62 +2154,384 @@ export default function DashboardPage() {
         )}
 
         {/* TAB: LEADERBOARD */}
-        {currentTab === "leaderboard" && (
-          <div className="db-projects-section animate-in fade-in duration-300">
-            <h3 className="db-section-title">XP Leaderboard Rankings</h3>
-            <div className="db-project-list">
-              {leaderboard.map((student, idx) => {
-                const rankIcon = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `#${idx + 1}`;
-                const rankBg = idx === 0 ? "linear-gradient(135deg,#f59e0b,#fcd34d)" : idx === 1 ? "linear-gradient(135deg,#9ca3af,#d1d5db)" : idx === 2 ? "linear-gradient(135deg,#b45309,#d97706)" : "#f3f4f6";
-                const rankColor = idx < 3 ? "#fff" : "#374151";
-                return (
-                  <div
-                    className="db-project-row"
-                    key={student.enrollmentNumber || idx}
-                    onClick={() => setSelectedPeer(student)}
-                    style={{
-                      border: student.you ? "2px solid var(--accent-yellow)" : "1px solid rgba(0,0,0,0.06)",
-                      background: student.you ? "rgba(251,191,36,0.06)" : "#fff",
-                      cursor: "pointer",
-                      transition: "box-shadow 0.15s, transform 0.15s",
-                    }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 16px rgba(0,0,0,0.1)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)"; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = ""; (e.currentTarget as HTMLElement).style.transform = ""; }}
-                  >
-                    <div className="db-project-info">
+        {currentTab === "leaderboard" && (() => {
+          const sortedLeaderboard = leaderboard;
+          const filteredLeaderboard = sortedLeaderboard.filter((s: any) => {
+            const query = leaderboardSearch.toLowerCase().trim();
+            if (!query) return true;
+            const name = (s.name || "").toLowerCase();
+            const enroll = (s.enrollmentNumber || "").toLowerCase();
+            return name.includes(query) || enroll.includes(query);
+          });
+
+          const isSearchActive = leaderboardSearch.trim() !== "";
+          const showPodium = !isSearchActive && sortedLeaderboard.length >= 1;
+          
+          const top1 = showPodium ? sortedLeaderboard[0] : null;
+          const top2 = showPodium && sortedLeaderboard.length >= 2 ? sortedLeaderboard[1] : null;
+          const top3 = showPodium && sortedLeaderboard.length >= 3 ? sortedLeaderboard[2] : null;
+
+          return (
+            <div className="db-projects-section animate-in fade-in duration-300">
+              <style dangerouslySetInnerHTML={{ __html: `
+                .leaderboard-podium {
+                  display: flex;
+                  justify-content: center;
+                  align-items: flex-end;
+                  gap: 16px;
+                  margin-bottom: 36px;
+                  padding-top: 10px;
+                }
+                .podium-card {
+                  background: #ffffff;
+                  border-radius: 24px;
+                  padding: 24px 16px;
+                  flex: 1;
+                  min-width: 200px;
+                  max-width: 260px;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  text-align: center;
+                  position: relative;
+                  border: 1.5px solid rgba(0, 0, 0, 0.06);
+                  box-shadow: 0 8px 32px rgba(0,0,0,0.05);
+                  transition: transform 0.2s, box-shadow 0.2s;
+                }
+                .podium-card:hover {
+                  transform: translateY(-4px);
+                  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+                }
+                .podium-card.rank-1 {
+                  border: 2px solid #FFD446;
+                  box-shadow: 0 10px 30px rgba(255, 212, 70, 0.15);
+                  background: linear-gradient(180deg, #fffdf2 0%, #ffffff 100%);
+                  z-index: 2;
+                  transform: scale(1.05) translateY(-8px);
+                }
+                .podium-card.rank-1:hover {
+                  transform: scale(1.05) translateY(-12px);
+                }
+                .podium-card.rank-2 {
+                  border: 2px solid #C0C0C0;
+                  background: linear-gradient(180deg, #fafafa 0%, #ffffff 100%);
+                  z-index: 1;
+                }
+                .podium-card.rank-3 {
+                  border: 2px solid #CD7F32;
+                  background: linear-gradient(180deg, #fffcf9 0%, #ffffff 100%);
+                  z-index: 1;
+                }
+                .podium-badge {
+                  width: 44px;
+                  height: 44px;
+                  border-radius: 50%;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 18px;
+                  font-weight: 900;
+                  color: #fff;
+                  margin-bottom: 12px;
+                  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+                }
+                .podium-card.rank-1 .podium-badge {
+                  background: linear-gradient(135deg, #FFD446, #FFA800);
+                  color: #000;
+                }
+                .podium-card.rank-2 .podium-badge {
+                  background: linear-gradient(135deg, #E0E0E0, #9E9E9E);
+                  color: #000;
+                }
+                .podium-card.rank-3 .podium-badge {
+                  background: linear-gradient(135deg, #D7A15C, #965A38);
+                }
+                .podium-name {
+                  font-size: 15px;
+                  font-weight: 750;
+                  color: var(--db-text-primary);
+                  margin-bottom: 4px;
+                  text-overflow: ellipsis;
+                  overflow: hidden;
+                  white-space: nowrap;
+                  max-width: 100%;
+                }
+                .podium-meta {
+                  font-size: 11px;
+                  color: var(--db-text-muted);
+                  margin-bottom: 10px;
+                }
+                .podium-xp {
+                  font-size: 22px;
+                  font-weight: 800;
+                  color: #FFD446;
+                  margin-bottom: 16px;
+                  text-shadow: 0 0 10px rgba(255,212,70,0.15);
+                }
+                .podium-actions {
+                  display: flex;
+                  gap: 8px;
+                  margin-top: auto;
+                  width: 100%;
+                }
+                .podium-btn {
+                  flex: 1;
+                  padding: 6px 4px;
+                  font-size: 10px;
+                  height: auto;
+                  min-width: auto;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  gap: 4px;
+                }
+                
+                .dark-leaderboard-list {
+                  display: flex;
+                  flex-direction: column;
+                  gap: 10px;
+                }
+                .dark-leaderboard-row {
+                  background: #ffffff;
+                  border: 1.5px solid rgba(0, 0, 0, 0.06);
+                  border-radius: 24px;
+                  padding: 14px 20px;
+                  display: flex;
+                  align-items: center;
+                  gap: 14px;
+                  transition: all 0.2s;
+                }
+                .dark-leaderboard-row:hover {
+                  border-color: rgba(255, 212, 70, 0.25);
+                  background: #fbfbfd;
+                }
+                .dark-leaderboard-row.rank-1 {
+                  border-color: rgba(255, 212, 70, 0.35);
+                  background: linear-gradient(90deg, #fffdf2 0%, #ffffff 100%);
+                }
+                .dark-leaderboard-row.rank-2 {
+                  border-color: rgba(192, 192, 192, 0.25);
+                  background: linear-gradient(90deg, #fafafa 0%, #ffffff 100%);
+                }
+                .dark-leaderboard-row.rank-3 {
+                  border-color: rgba(205, 127, 50, 0.25);
+                  background: linear-gradient(90deg, #fffbf9 0%, #ffffff 100%);
+                }
+                .row-rank-badge {
+                  width: 32px;
+                  height: 32px;
+                  border-radius: 50%;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-weight: 900;
+                  font-size: 12px;
+                  flex-shrink: 0;
+                }
+                .row-rank-1 .row-rank-badge {
+                  background: linear-gradient(135deg, #FFD446, #FFA800);
+                  color: #000;
+                }
+                .row-rank-2 .row-rank-badge {
+                  background: linear-gradient(135deg, #E0E0E0, #9E9E9E);
+                  color: #000;
+                }
+                .row-rank-3 .row-rank-badge {
+                  background: linear-gradient(135deg, #D7A15C, #965A38);
+                  color: #fff;
+                }
+                .row-rank-other .row-rank-badge {
+                  background: rgba(0, 0, 0, 0.04);
+                  color: var(--db-text-muted);
+                  border: 1.5px solid rgba(0,0,0,0.06);
+                }
+                .row-name {
+                  font-size: 14px;
+                  font-weight: 700;
+                  color: var(--db-text-primary);
+                }
+                .row-meta {
+                  font-size: 11px;
+                  color: var(--db-text-muted);
+                }
+                .row-xp {
+                  font-size: 16px;
+                  font-weight: 800;
+                  color: #FFD446;
+                  flex-shrink: 0;
+                }
+                .action-btn-circle {
+                  width: 32px;
+                  height: 32px;
+                  border-radius: 50%;
+                  border: 1px solid rgba(0, 0, 0, 0.08);
+                  background: rgba(0, 0, 0, 0.02);
+                  color: var(--db-text-primary);
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  cursor: pointer;
+                  transition: all 0.2s;
+                  font-size: 13px;
+                }
+                .action-btn-circle:hover {
+                  background: #FFD446;
+                  color: #000;
+                  border-color: #FFD446;
+                }
+                @media (max-width: 600px) {
+                  .leaderboard-podium {
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 16px;
+                  }
+                  .podium-card {
+                    width: 100%;
+                    max-width: 100%;
+                    transform: none !important;
+                  }
+                  .dark-leaderboard-row {
+                    flex-wrap: wrap;
+                  }
+                }
+              `}} />
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
+                <h3 className="db-section-title" style={{ margin: 0 }}>XP Leaderboard Rankings</h3>
+                <input
+                  type="text"
+                  placeholder="Search student by name or enrollment…"
+                  value={leaderboardSearch}
+                  onChange={(e) => setLeaderboardSearch(e.target.value)}
+                  className="form-input-text"
+                  style={{ maxWidth: "280px", margin: 0, backgroundColor: "#fff", color: "#000" }}
+                />
+              </div>
+
+              {/* PODIUM CARDS */}
+              {showPodium && (
+                <div className="leaderboard-podium">
+                  {top2 && (() => {
+                    return (
+                      <div className="podium-card rank-2 animate-in slide-in-from-bottom duration-300" onClick={() => setSelectedPeer(top2)} style={{ cursor: "pointer" }}>
+                        <div style={{ position: "absolute", top: "-12px", fontSize: "20px" }}>🥈</div>
+                        <div className="podium-badge">#2</div>
+                        <div className="podium-name" title={top2.name}>{top2.name}</div>
+                        <div className="podium-meta">
+                          {top2.enrollmentNumber || ""} · {top2.branch || "Student"}
+                          <br />
+                          📅 {top2.attendanceCount || 0}/{WORKSHOP_DAYS} Days ({Math.round(((top2.attendanceCount || 0) / WORKSHOP_DAYS) * 100)}%)
+                        </div>
+                        <div className="podium-xp">{top2.xp || 0} XP</div>
+                        <div className="podium-actions">
+                          <button onClick={(e) => { e.stopPropagation(); setSelectedPeer(top2); }} className="explore-btn podium-btn" style={{ backgroundColor: "#FFD446", color: "#000" }}>
+                            👤 Profile
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {top1 && (() => {
+                    return (
+                      <div className="podium-card rank-1 animate-in slide-in-from-bottom duration-500" onClick={() => setSelectedPeer(top1)} style={{ cursor: "pointer" }}>
+                        <div style={{ position: "absolute", top: "-16px", fontSize: "26px" }}>👑</div>
+                        <div className="podium-badge">#1</div>
+                        <div className="podium-name" style={{ fontSize: "17px" }} title={top1.name}>{top1.name}</div>
+                        <div className="podium-meta">
+                          {top1.enrollmentNumber || ""} · {top1.branch || "Student"}
+                          <br />
+                          📅 {top1.attendanceCount || 0}/{WORKSHOP_DAYS} Days ({Math.round(((top1.attendanceCount || 0) / WORKSHOP_DAYS) * 100)}%)
+                        </div>
+                        <div className="podium-xp" style={{ fontSize: "25px" }}>{top1.xp || 0} XP</div>
+                        <div className="podium-actions">
+                          <button onClick={(e) => { e.stopPropagation(); setSelectedPeer(top1); }} className="explore-btn podium-btn" style={{ backgroundColor: "#FFD446", color: "#000" }}>
+                            👤 Profile
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {top3 && (() => {
+                    return (
+                      <div className="podium-card rank-3 animate-in slide-in-from-bottom duration-300" onClick={() => setSelectedPeer(top3)} style={{ cursor: "pointer" }}>
+                        <div style={{ position: "absolute", top: "-12px", fontSize: "20px" }}>🥉</div>
+                        <div className="podium-badge">#3</div>
+                        <div className="podium-name" title={top3.name}>{top3.name}</div>
+                        <div className="podium-meta">
+                          {top3.enrollmentNumber || ""} · {top3.branch || "Student"}
+                          <br />
+                          📅 {top3.attendanceCount || 0}/{WORKSHOP_DAYS} Days ({Math.round(((top3.attendanceCount || 0) / WORKSHOP_DAYS) * 100)}%)
+                        </div>
+                        <div className="podium-xp">{top3.xp || 0} XP</div>
+                        <div className="podium-actions">
+                          <button onClick={(e) => { e.stopPropagation(); setSelectedPeer(top3); }} className="explore-btn podium-btn" style={{ backgroundColor: "#FFD446", color: "#000" }}>
+                            👤 Profile
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* LIST VIEW */}
+              <div className="dark-leaderboard-list">
+                {filteredLeaderboard.length > 0 ? (
+                  filteredLeaderboard.map((s: any) => {
+                    const absoluteRank = sortedLeaderboard.findIndex((x: any) => x.enrollmentNumber === s.enrollmentNumber) + 1;
+                    const rankClass = absoluteRank === 1 ? "rank-1 row-rank-1" : absoluteRank === 2 ? "rank-2 row-rank-2" : absoluteRank === 3 ? "rank-3 row-rank-3" : "row-rank-other";
+
+                    return (
                       <div
-                        className="db-project-icon"
-                        style={{ fontWeight: "900", background: rankBg, color: rankColor, fontSize: idx < 3 ? "18px" : "13px", minWidth: "40px", borderRadius: "10px" }}
+                        className={`dark-leaderboard-row ${rankClass}`}
+                        key={s.enrollmentNumber}
+                        onClick={() => setSelectedPeer(s)}
+                        style={{ cursor: "pointer" }}
                       >
-                        {rankIcon}
+                        <div className="row-rank-badge">
+                          {absoluteRank <= 3 ? (absoluteRank === 1 ? "🥇" : absoluteRank === 2 ? "🥈" : "🥉") : `#${absoluteRank}`}
+                        </div>
+                        
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="row-name" style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                            {s.name}
+                            {s.you && (
+                              <span style={{ marginLeft: "8px", fontSize: "10px", fontWeight: "800", backgroundColor: "var(--accent-yellow)", color: "#000", padding: "1px 8px", borderRadius: "20px" }}>YOU</span>
+                            )}
+                          </div>
+                          <div className="row-meta">
+                            {s.enrollmentNumber || ""} · {s.branch || "Student"}
+                            <span style={{ margin: "0 6px", opacity: 0.3 }}>|</span>
+                            📅 {s.attendanceCount || 0}/{WORKSHOP_DAYS} Days ({Math.round(((s.attendanceCount || 0) / WORKSHOP_DAYS) * 100)}%)
+                          </div>
+                        </div>
+
+                        <div style={{ display: "flex", alignItems: "center", gap: "16px", flexShrink: 0 }}>
+                          <span className="row-xp">{s.xp || 0} XP</span>
+                          
+                          <div style={{ display: "flex", gap: "6px" }}>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setSelectedPeer(s); }}
+                              className="action-btn-circle"
+                              title="View Public Profile"
+                              style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+                            >
+                              👤
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="db-project-name" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          {student.name}
-                          {student.you && (
-                            <span style={{ fontSize: "10px", fontWeight: "800", backgroundColor: "var(--accent-yellow)", color: "#000", padding: "1px 8px", borderRadius: "20px" }}>YOU</span>
-                          )}
-                        </h4>
-                        <span className="db-project-url">{student.branch || "Student"}{student.enrollmentNumber ? ` · ${student.enrollmentNumber}` : ""}</span>
-                      </div>
-                    </div>
-                    <div style={{ textAlign: "right" }}>
-                      <span style={{ fontWeight: "900", fontSize: "16px", color: student.xp > 0 ? "var(--db-accent-green)" : "var(--db-text-muted)" }}>
-                        {student.xp} XP
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-              {leaderboard.length === 0 && loading && (
-                <div className="db-project-row" style={{ justifyContent: "center", color: "var(--db-text-muted)" }}>Loading participants...</div>
-              )}
-              {leaderboard.length === 0 && !loading && (
-                <div className="db-project-row" style={{ justifyContent: "center", color: "var(--db-text-muted)" }}>No participants yet.</div>
-              )}
+                    );
+                  })
+                ) : (
+                  <div className="dark-leaderboard-row" style={{ justifyContent: "center", color: "var(--db-text-muted)" }}>No students found matching your search.</div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* TAB: PROFILE */}
         {currentTab === "profile" && (
@@ -2299,6 +2810,53 @@ export default function DashboardPage() {
                 </div>
               </aside>
             </div>
+
+            {/* Badges & Achievements section */}
+            <div className="badges-section-card animate-in fade-in duration-300">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <h4 style={{ fontSize: "16px", fontWeight: "900", margin: 0, textTransform: "uppercase", color: "var(--db-text-primary)" }}>🏅 My Achievements &amp; Badges</h4>
+                <span style={{ fontSize: "12px", fontWeight: "800", color: "var(--db-accent-green)", backgroundColor: "rgba(16,185,129,0.1)", padding: "2px 10px", borderRadius: "20px" }}>
+                  {unlockedBadges.length}/7 Unlocked
+                </span>
+              </div>
+
+              <div className="badges-section-grid">
+                {[
+                  { id: "first_attendance", emoji: "🎯", color: "linear-gradient(135deg, #FFD446, #FFA800)", name: "First Check-In", desc: "Marked attendance for the first time" },
+                  { id: "first_github_repo", emoji: "📂", color: "linear-gradient(135deg, #10B981, #059669)", name: "First Repo Submit", desc: "Submitted your first GitHub repository" },
+                  { id: "first_assignment", emoji: "📝", color: "linear-gradient(135deg, #3B82F6, #2563EB)", name: "First HW Done", desc: "Submitted your first assignment" },
+                  { id: "perfect_attendance_badge", emoji: "🔥", color: "linear-gradient(135deg, #EC4899, #D946EF)", name: "Perfect Attendance", desc: "Attended all 7 days of the workshop" },
+                  { id: "assignment_master_badge", emoji: "💻", color: "linear-gradient(135deg, #F59E0B, #D97706)", name: "Assignment Master", desc: "Submitted all workshop assignments" },
+                  { id: "workshop_warrior_badge", emoji: "🚀", color: "linear-gradient(135deg, #8B5CF6, #7C3AED)", name: "Workshop Warrior", desc: "Completed all daily tasks every day" },
+                  { id: "git_github_master_badge", emoji: "🎓", color: "linear-gradient(135deg, #EF4444, #DC2626)", name: "Git & GitHub Master", desc: "Completed the entire workshop requirements" },
+                ].map((badge) => {
+                  const isUnlocked = unlockedBadges.includes(badge.id);
+                  return (
+                    <div
+                      key={badge.id}
+                      className={`badge-item-box${!isUnlocked ? " locked" : ""}`}
+                      onClick={() => {
+                        if (isUnlocked) {
+                          setUnlockedBadgeModal({
+                            emoji: badge.emoji,
+                            color: badge.color,
+                            name: badge.name,
+                            desc: badge.desc,
+                            xp: badge.id === "git_github_master_badge" ? 250 : badge.id.includes("warrior") ? 150 : 100
+                          });
+                        }
+                      }}
+                    >
+                      <div className="badge-item-emoji" style={{ background: badge.color, color: "#fff" }}>
+                        {badge.emoji}
+                      </div>
+                      <span className="badge-item-name">{badge.name}</span>
+                      <span className="badge-item-desc">{isUnlocked ? "✓ Unlocked" : "🔒 Locked"}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
       </main>
@@ -2520,6 +3078,39 @@ export default function DashboardPage() {
             )}
           </span>
           <span className="profile-toast-msg">{toast.message}</span>
+        </div>
+      )}
+
+      {/* Floating XP Animation Layer */}
+      <div className="floating-xp-container">
+        {floatingXps.map((fx) => (
+          <span
+            key={fx.id}
+            className="floating-xp-text"
+            style={{ left: fx.x, top: fx.y }}
+          >
+            {fx.text}
+          </span>
+        ))}
+      </div>
+
+      {/* Unlocked Badge Milestone Modal */}
+      {unlockedBadgeModal && (
+        <div className="badge-unlock-backdrop" onClick={() => setUnlockedBadgeModal(null)}>
+          <div className="badge-unlock-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="badge-unlock-emoji" style={{ background: unlockedBadgeModal.color, color: "#fff" }}>
+              {unlockedBadgeModal.emoji}
+            </div>
+            <h3 className="badge-unlock-title">Achievement Unlocked!</h3>
+            <h4 style={{ fontSize: "16px", fontWeight: "800", color: "#FFA800", margin: "0 0 16px 0" }}>{unlockedBadgeModal.name}</h4>
+            <p className="badge-unlock-desc">{unlockedBadgeModal.desc}</p>
+            <div className="badge-unlock-bonus">
+              +{unlockedBadgeModal.xp} XP Bonus
+            </div>
+            <button className="explore-btn" style={{ width: "100%", height: "45px" }} onClick={() => setUnlockedBadgeModal(null)}>
+              Awesome!
+            </button>
+          </div>
         </div>
       )}
     </div>

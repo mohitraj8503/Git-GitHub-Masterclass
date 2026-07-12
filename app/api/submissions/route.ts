@@ -3,15 +3,26 @@ import fs from "fs";
 import path from "path";
 import { supabaseAdmin } from "@/lib/supabaseServer";
 import { completeTaskForEnrollment } from "@/lib/tasks";
+import { getRegistrationId } from "@/lib/attendance";
+import { awardXp } from "@/lib/xp";
 
 const FILE_PATH = path.join(process.cwd(), "data", "submissions.json");
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const studentId = searchParams.get("student_id");
+    let studentId = searchParams.get("student_id");
 
     if (supabaseAdmin) {
+      if (studentId) {
+        const resolvedId = await getRegistrationId(studentId);
+        if (resolvedId) {
+          studentId = resolvedId;
+        } else {
+          return NextResponse.json({ success: true, submissions: [] });
+        }
+      }
+
       let query = supabaseAdmin.from("submissions").select("*");
       if (studentId) {
         query = query.eq("student_id", studentId);
@@ -44,14 +55,16 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { assignment_id, student_id, repo_url, live_url, attachment_url } = await request.json();
+    let { assignment_id, student_id, repo_url, live_url, attachment_url } = await request.json();
     if (!assignment_id || !student_id) {
       return NextResponse.json({ success: false, error: "Assignment ID and Student ID are required." }, { status: 400 });
     }
 
+    const rawStudentId = student_id; // Keep raw for completeTaskForEnrollment and fallback
+
     const submissionData = {
       assignment_id,
-      student_id,
+      student_id: rawStudentId, // Will be overridden inside Supabase check if resolvedId exists
       repo_url: repo_url || null,
       live_url: live_url || null,
       attachment_url: attachment_url || null,
@@ -59,6 +72,12 @@ export async function POST(request: Request) {
     };
 
     if (supabaseAdmin) {
+      const resolvedId = await getRegistrationId(student_id);
+      if (resolvedId) {
+        student_id = resolvedId;
+        submissionData.student_id = resolvedId;
+      }
+
       const { data, error } = await supabaseAdmin
         .from("submissions")
         .upsert(submissionData, { onConflict: "assignment_id,student_id" })
@@ -66,11 +85,25 @@ export async function POST(request: Request) {
         .single();
 
       if (!error && data) {
-        const taskResult = await completeTaskForEnrollment(student_id, "complete_assignment", {
+        const xpResult = await awardXp(rawStudentId, "submit_assignment", assignment_id);
+
+        let isEarly = false;
+        const { data: assDetails } = await supabaseAdmin
+          .from("assignments")
+          .select("due_date")
+          .eq("id", assignment_id)
+          .maybeSingle();
+        
+        if (assDetails && new Date().getTime() < new Date(assDetails.due_date).getTime()) {
+          await awardXp(rawStudentId, "early_submission_bonus", `${assignment_id}_early`);
+          isEarly = true;
+        }
+
+        const taskResult = await completeTaskForEnrollment(rawStudentId, "complete_assignment", {
           source: "assignment-submission",
           metadata: { assignment_id },
         });
-        return NextResponse.json({ success: true, submission: data, task: taskResult });
+        return NextResponse.json({ success: true, submission: data, task: taskResult, xpResult, isEarly });
       }
       console.warn("Supabase submission upsert failed, falling back to local file. Error:", error);
     }

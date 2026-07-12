@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "./supabaseServer";
+import { awardXp } from "./xp";
 
 export const TASK_XP_REWARDS: Record<string, number> = {
   mark_attendance: 20,
@@ -54,7 +55,7 @@ export async function completeTaskForEnrollment(
     const { data: existing, error: lookupErr } = await supabaseAdmin
       .from("task_completions")
       .select("id")
-      .eq("enrollment_number", normalizedEnrollment)
+      .ilike("enrollment_number", normalizedEnrollment)
       .eq("task_id", taskId)
       .eq("completed_date", completedDate)
       .maybeSingle();
@@ -104,44 +105,14 @@ export async function completeTaskForEnrollment(
       };
     }
 
-    const { data: registration, error: regErr } = await supabaseAdmin
-      .from("registrations")
-      .select("id, total_xp")
-      .eq("enrollment_number", normalizedEnrollment)
-      .maybeSingle();
+    const xpResult = await awardXp(enrollmentNumber, taskId, options?.metadata ? JSON.stringify(options.metadata) : undefined);
 
-    if (regErr || !registration) {
-      console.error("Unable to load registration for XP update:", regErr);
+    if (!xpResult.success) {
+      console.error("XP update failed:", xpResult.error);
       await supabaseAdmin
         .from("task_completions")
         .delete()
-        .eq("enrollment_number", normalizedEnrollment)
-        .eq("task_id", taskId)
-        .eq("completed_date", completedDate);
-      return {
-        ok: false,
-        success: false,
-        alreadyCompleted: false,
-        xpAwarded: 0,
-        totalXp: 0,
-        message: "Task was logged, but XP could not be updated.",
-        error: regErr?.message || "Registration not found.",
-      };
-    }
-
-    const currentXp = Number(registration.total_xp || 0);
-    const nextXp = currentXp + xpToAward;
-    const { error: updateErr } = await supabaseAdmin
-      .from("registrations")
-      .update({ total_xp: nextXp })
-      .eq("id", registration.id);
-
-    if (updateErr) {
-      console.error("XP update failed:", updateErr);
-      await supabaseAdmin
-        .from("task_completions")
-        .delete()
-        .eq("enrollment_number", normalizedEnrollment)
+        .ilike("enrollment_number", normalizedEnrollment)
         .eq("task_id", taskId)
         .eq("completed_date", completedDate);
       return {
@@ -151,7 +122,7 @@ export async function completeTaskForEnrollment(
         xpAwarded: 0,
         totalXp: 0,
         message: "Task completion could not be persisted because XP update failed.",
-        error: updateErr.message,
+        error: xpResult.error,
       };
     }
 
@@ -159,9 +130,9 @@ export async function completeTaskForEnrollment(
       ok: true,
       success: true,
       alreadyCompleted: false,
-      xpAwarded: xpToAward,
-      totalXp: nextXp,
-      message: `Task completed! Awarded ${xpToAward} XP.`,
+      xpAwarded: xpResult.xpEarned || 0,
+      totalXp: 0, // Frontend handles live queries
+      message: `Task completed! Awarded ${xpResult.xpEarned || 0} XP.`,
     };
   } catch (error: any) {
     console.error("Unexpected task completion failure:", error);
@@ -187,7 +158,7 @@ export async function getTaskCompletionsForEnrollment(enrollmentNumber: string) 
   const { data, error } = await supabaseAdmin
     .from("task_completions")
     .select("task_id")
-    .eq("enrollment_number", normalizedEnrollment)
+    .ilike("enrollment_number", normalizedEnrollment)
     .eq("completed_date", completedDate);
 
   if (error) {

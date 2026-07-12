@@ -2,6 +2,8 @@ import { randomBytes } from "crypto";
 import { supabaseAdmin } from "./supabaseServer";
 import { ATTENDANCE_WINDOW_MINUTES } from "./config";
 
+import { awardXp } from "./xp";
+
 export const WINDOW_MS = ATTENDANCE_WINDOW_MINUTES * 60 * 1000;
 
 /** Resolve a student's registration id from their enrollment number. */
@@ -10,7 +12,7 @@ export async function getRegistrationId(enrollmentNumber: string): Promise<strin
   const { data } = await supabaseAdmin
     .from("registrations")
     .select("id")
-    .eq("enrollment_number", enrollmentNumber.trim())
+    .ilike("enrollment_number", enrollmentNumber.trim())
     .maybeSingle();
   return (data as any)?.id ?? null;
 }
@@ -84,5 +86,7 @@ export async function performCheckIn(enrollmentNumber: string, windowId: string)
 
   if (insErr) return { ok: false, status: 500, message: insErr.message };
 
-  return { ok: true, status: 200, message: "Checked in.", log, day: win.day };
+  const xpResult = await awardXp(enrollmentNumber, "mark_attendance");
+
+  return { ok: true, status: 200, message: "Checked in.", log, day: win.day, xpResult };
 }
