@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { performCheckIn } from "@/lib/attendance";
+import { completeTaskForEnrollment } from "@/lib/tasks";
 
 export const dynamic = "force-dynamic";
 
@@ -15,10 +16,24 @@ export async function POST(request: Request) {
     }
 
     const result = await performCheckIn(enrollment_number, window_id);
+    if (result.ok) {
+      const taskResult = await completeTaskForEnrollment(enrollment_number, "mark_attendance", {
+        source: "attendance-check-in",
+        metadata: { window_id },
+      });
+      return NextResponse.json(
+        {
+          success: true,
+          log: result.log,
+          day: result.day,
+          task: taskResult,
+        },
+        { status: result.status }
+      );
+    }
+
     return NextResponse.json(
-      result.ok
-        ? { success: true, log: result.log, day: result.day }
-        : { success: false, error: result.message },
+      { success: false, error: result.message },
       { status: result.status }
     );
   } catch (err: any) {

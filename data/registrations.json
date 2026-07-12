@@ -1,17 +1,50 @@
 [
   {
     "id": "1783532434088",
-    "name": "Mohit Raj Test",
+    "name": "Mohit Raj",
     "enrollmentNumber": "AJU/250609",
-    "email": "mohittest@aju.edu.in",
-    "phoneNumber": "7654212171",
-    "branch": "BCA",
-    "yearOfStudy": "3rd Year",
-    "gitExperience": "Never used it",
+    "email": "mohitraj8503@gmail.com",
+    "phoneNumber": "07654212171",
+    "branch": "B Tech",
+    "yearOfStudy": "1st Year",
+    "gitExperience": "Comfortable with basics",
     "hasLaptop": "Yes, I'll bring my own laptop",
     "hasGithubAccount": "Yes",
     "availableAllDays": "Yes, fully available",
     "agreeCodeOfConduct": true,
-    "registeredAt": "2026-07-08T17:59:00.924Z"
+    "registeredAt": "2026-07-09T11:35:34.499Z",
+    "total_xp": 120
+  },
+  {
+    "id": "1783532434089",
+    "name": "Ranjan Singh",
+    "enrollmentNumber": "AJU/251630",
+    "email": "ranjan@aju.in",
+    "phoneNumber": "9876543210",
+    "branch": "BCA",
+    "yearOfStudy": "2nd Year",
+    "gitExperience": "Some experience",
+    "hasLaptop": "Yes",
+    "hasGithubAccount": "Yes",
+    "availableAllDays": "Yes",
+    "agreeCodeOfConduct": true,
+    "registeredAt": "2026-07-08T18:00:00.000Z",
+    "total_xp": 30
+  },
+  {
+    "id": "1783532434090",
+    "name": "Amit Kumar",
+    "enrollmentNumber": "AJU/250789",
+    "email": "amit@aju.in",
+    "phoneNumber": "9998887776",
+    "branch": "BCA",
+    "yearOfStudy": "3rd Year",
+    "gitExperience": "Experienced",
+    "hasLaptop": "Yes",
+    "hasGithubAccount": "Yes",
+    "availableAllDays": "Yes",
+    "agreeCodeOfConduct": true,
+    "registeredAt": "2026-07-08T18:05:00.000Z",
+    "total_xp": 60
   }
 ]

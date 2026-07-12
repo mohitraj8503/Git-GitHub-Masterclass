@@ -1,12 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import AssetImage from "@/components/AssetImage";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
+
+  useEffect(() => {
+    const origBodyBg = document.body.style.backgroundColor;
+    const origHtmlBg = document.documentElement.style.backgroundColor;
+    document.body.style.backgroundColor = "#ffd446";
+    document.documentElement.style.backgroundColor = "#ffd446";
+    return () => {
+      document.body.style.backgroundColor = origBodyBg;
+      document.documentElement.style.backgroundColor = origHtmlBg;
+    };
+  }, []);
+
+  // Redirect to dashboard if already registered
+  useEffect(() => {
+    const saved = localStorage.getItem("user_registration");
+    if (saved) {
+      router.push("/dashboard");
+    }
+  }, [router]);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -29,6 +50,16 @@ export default function RegisterPage() {
   // UI Status
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    if (status === "authenticated" && session?.user) {
+      setFormData((prev) => ({
+        ...prev,
+        email: prev.email || session.user?.email || "",
+        name: prev.name || session.user?.name || "",
+      }));
+    }
+  }, [session, status]);
 
   // Field change handler
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {

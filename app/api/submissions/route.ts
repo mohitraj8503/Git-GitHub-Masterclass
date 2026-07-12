@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { completeTaskForEnrollment } from "@/lib/tasks";
 
 const FILE_PATH = path.join(process.cwd(), "data", "submissions.json");
 
@@ -43,16 +44,17 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { assignment_id, student_id, repo_url, live_url } = await request.json();
-    if (!assignment_id || !student_id || !repo_url) {
-      return NextResponse.json({ success: false, error: "Assignment ID, Student ID, and Repository URL are required." }, { status: 400 });
+    const { assignment_id, student_id, repo_url, live_url, attachment_url } = await request.json();
+    if (!assignment_id || !student_id) {
+      return NextResponse.json({ success: false, error: "Assignment ID and Student ID are required." }, { status: 400 });
     }
 
     const submissionData = {
       assignment_id,
       student_id,
-      repo_url,
-      live_url: live_url || "",
+      repo_url: repo_url || null,
+      live_url: live_url || null,
+      attachment_url: attachment_url || null,
       submitted_at: new Date().toISOString(),
     };
 
@@ -64,7 +66,11 @@ export async function POST(request: Request) {
         .single();
 
       if (!error && data) {
-        return NextResponse.json({ success: true, submission: data });
+        const taskResult = await completeTaskForEnrollment(student_id, "complete_assignment", {
+          source: "assignment-submission",
+          metadata: { assignment_id },
+        });
+        return NextResponse.json({ success: true, submission: data, task: taskResult });
       }
       console.warn("Supabase submission upsert failed, falling back to local file. Error:", error);
     }
@@ -88,7 +94,11 @@ export async function POST(request: Request) {
     submissions.push(entry);
     fs.writeFileSync(FILE_PATH, JSON.stringify(submissions, null, 2), "utf8");
 
-    return NextResponse.json({ success: true, submission: entry });
+    const taskResult = await completeTaskForEnrollment(student_id, "complete_assignment", {
+      source: "assignment-submission",
+      metadata: { assignment_id },
+    });
+    return NextResponse.json({ success: true, submission: entry, task: taskResult });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }

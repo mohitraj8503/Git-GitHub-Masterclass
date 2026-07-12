@@ -4,6 +4,8 @@ create table if not exists public.registrations (
   name text not null,
   enrollment_number text unique not null,
   email text unique not null,
+  google_id text,
+  github_id text,
   phone_number text not null,
   branch text not null,
   year_of_study text not null,

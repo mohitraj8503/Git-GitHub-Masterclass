@@ -6,18 +6,96 @@ import { supabaseAdmin } from "@/lib/supabaseServer";
 const DATA_DIR = path.join(process.cwd(), "data");
 const FILE_PATH = path.join(DATA_DIR, "registrations.json");
 
+async function findExistingRegistrationByEmail(email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (supabaseAdmin) {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from("registrations")
+        .select("id, email, google_id, github_id")
+        .eq("email", normalizedEmail)
+        .maybeSingle();
+
+      if (!error && data) {
+        return data;
+      }
+    } catch (e) {
+      console.error("Supabase duplicate-email lookup failed:", e);
+    }
+  }
+
+  if (!fs.existsSync(FILE_PATH)) {
+    return null;
+  }
+
+  try {
+    const registrations = JSON.parse(fs.readFileSync(FILE_PATH, "utf8"));
+    return registrations.find((reg: any) => reg.email && reg.email.toLowerCase() === normalizedEmail) || null;
+  } catch (e) {
+    console.error("Fallback duplicate-email lookup failed:", e);
+    return null;
+  }
+}
+
+const TASK_XP_REWARDS: Record<string, number> = {
+  mark_attendance: 20,
+  download_slides: 10,
+  complete_assignment: 40,
+  push_github: 20,
+  fill_feedback: 10,
+};
+
 export async function GET() {
   try {
     if (supabaseAdmin) {
-      const { data, error } = await supabaseAdmin
+      // 1. Fetch registrations
+      const { data: regs, error: regsErr } = await supabaseAdmin
         .from("registrations")
         .select("*")
         .order("registered_at", { ascending: false });
 
-      if (!error && data) {
-        return NextResponse.json({ success: true, registrations: data });
+      if (!regsErr && regs) {
+        // 2. Fetch task completions
+        const { data: completions } = await supabaseAdmin
+          .from("task_completions")
+          .select("enrollment_number, task_id");
+
+        // 3. Fetch manual awards
+        const { data: awards } = await supabaseAdmin
+          .from("xp_awards")
+          .select("student_id, amount");
+
+        // Map task completions
+        const completionsMap: Record<string, number> = {};
+        (completions || []).forEach((c: any) => {
+          const key = (c.enrollment_number || "").trim().toUpperCase();
+          const reward = TASK_XP_REWARDS[c.task_id] || 0;
+          completionsMap[key] = (completionsMap[key] || 0) + reward;
+        });
+
+        // Map manual awards
+        const awardsMap: Record<string, number> = {};
+        (awards || []).forEach((a: any) => {
+          const key = a.student_id;
+          awardsMap[key] = (awardsMap[key] || 0) + (a.amount || 0);
+        });
+
+        // Compute dynamic total_xp
+        const enrichedRegs = regs.map((r: any) => {
+          const keyComp = (r.enrollment_number || "").trim().toUpperCase();
+          const keyAward = r.id;
+          const compXp = completionsMap[keyComp] || 0;
+          const awardXp = awardsMap[keyAward] || 0;
+          return {
+            ...r,
+            total_xp: compXp + awardXp
+          };
+        });
+
+        return NextResponse.json({ success: true, registrations: enrichedRegs });
       }
-      console.warn("Supabase registrations query failed, falling back to local file. Error:", error);
+      console.warn("Supabase registrations query failed, falling back to local file. Error:", regsErr);
     }
 
     // Local JSON Fallback
@@ -27,7 +105,48 @@ export async function GET() {
     }
 
     const registrations = JSON.parse(fs.readFileSync(filePath, "utf8"));
-    return NextResponse.json({ success: true, registrations });
+    
+    // Fetch local task completions
+    const completionsPath = path.join(process.cwd(), "data", "task_completions.json");
+    let completionsLocal: any[] = [];
+    if (fs.existsSync(completionsPath)) {
+      completionsLocal = JSON.parse(fs.readFileSync(completionsPath, "utf8"));
+    }
+
+    // Fetch local manual awards
+    const awardsPath = path.join(process.cwd(), "data", "xp_awards.json");
+    let awardsLocal: any[] = [];
+    if (fs.existsSync(awardsPath)) {
+      awardsLocal = JSON.parse(fs.readFileSync(awardsPath, "utf8"));
+    }
+
+    // Map task completions
+    const completionsMap: Record<string, number> = {};
+    completionsLocal.forEach((c: any) => {
+      const key = (c.enrollmentNumber || c.enrollment_number || "").trim().toUpperCase();
+      const reward = TASK_XP_REWARDS[c.taskId || c.task_id] || 0;
+      completionsMap[key] = (completionsMap[key] || 0) + reward;
+    });
+
+    // Map manual awards
+    const awardsMap: Record<string, number> = {};
+    awardsLocal.forEach((a: any) => {
+      const key = a.student_id || a.studentId;
+      awardsMap[key] = (awardsMap[key] || 0) + (a.amount || 0);
+    });
+
+    const enrichedRegsLocal = registrations.map((r: any) => {
+      const keyComp = (r.enrollmentNumber || r.enrollment_number || "").trim().toUpperCase();
+      const keyAward = r.id || r.enrollmentNumber;
+      const compXp = completionsMap[keyComp] || 0;
+      const awardXp = awardsMap[keyAward] || 0;
+      return {
+        ...r,
+        total_xp: compXp + awardXp
+      };
+    });
+
+    return NextResponse.json({ success: true, registrations: enrichedRegsLocal });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
@@ -91,6 +210,17 @@ export async function POST(request: Request) {
     const newId = Date.now().toString();
     const cleanEmail = email.trim().toLowerCase();
     const cleanEnrollment = enrollmentNumber.trim();
+
+    const existingRegistration = await findExistingRegistrationByEmail(cleanEmail);
+    if (existingRegistration) {
+      let message = "An account with this email already exists. Please log in instead.";
+      if (existingRegistration.google_id) {
+        message = "An account with this email already exists. This account uses Google Sign-In. Please log in with Google instead.";
+      } else if (existingRegistration.github_id) {
+        message = "An account with this email already exists. This account uses GitHub Sign-In. Please log in with GitHub instead.";
+      }
+      return NextResponse.json({ success: false, error: message }, { status: 409 });
+    }
 
     // Check if Supabase client is available
     if (supabaseAdmin) {

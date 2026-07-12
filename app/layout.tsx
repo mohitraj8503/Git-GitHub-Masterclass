@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { Anton, Plus_Jakarta_Sans } from "next/font/google";
+import { Anton, Plus_Jakarta_Sans, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
 import WebflowClasses from "@/components/WebflowClasses";
 import SiteInteractions from "@/components/SiteInteractions";
+import AuthProvider from "@/components/AuthProvider";
 
 const anton = Anton({
   subsets: ["latin"],
@@ -15,6 +16,13 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
   variable: "--font-plus-jakarta-sans",
+  display: "swap",
+});
+
+const barlowCondensed = Barlow_Condensed({
+  subsets: ["latin"],
+  weight: ["700", "800"],
+  variable: "--font-barlow-condensed",
   display: "swap",
 });
 
@@ -53,7 +61,7 @@ export default function RootLayout({
       data-wf-page="664af7bf6430c50e0ebf6c48"
       data-wf-site="664af7bf6430c50e0ebf6c3f"
       lang="en"
-      className={`w-mod-js ${anton.variable} ${plusJakartaSans.variable}`}
+      className={`w-mod-js ${anton.variable} ${plusJakartaSans.variable} ${barlowCondensed.variable}`}
       suppressHydrationWarning
     >
       <head>
@@ -72,9 +80,11 @@ export default function RootLayout({
         `}} />
       </head>
       <body>
-        <WebflowClasses />
-        {children}
-        <SiteInteractions />
+        <AuthProvider>
+          <WebflowClasses />
+          {children}
+          <SiteInteractions />
+        </AuthProvider>
       </body>
     </html>
   );

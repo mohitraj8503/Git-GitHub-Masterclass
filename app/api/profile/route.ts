@@ -62,6 +62,56 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const form = await request.formData();
+    const role = (form.get("role") as string) || "";
+    const email = (form.get("email") as string) || "";
+
+    // --- Admin avatar upload (keyed by email; no registration record needed) ---
+    if (role === "admin") {
+      if (!supabaseAdmin) {
+        return NextResponse.json({ success: false, error: "Server storage is unavailable." }, { status: 500 });
+      }
+      await ensureBucket();
+
+      let avatarUrl: string | null = null;
+      const file = form.get("photo");
+      if (file && typeof file !== "string") {
+        if (!ALLOWED_TYPES.includes((file as File).type)) {
+          return NextResponse.json(
+            { success: false, error: "Only JPG, PNG, or WEBP images are allowed." },
+            { status: 400 }
+          );
+        }
+        if ((file as File).size > MAX_BYTES) {
+          return NextResponse.json(
+            { success: false, error: "Image is too large. Maximum size is 5MB." },
+            { status: 400 }
+          );
+        }
+
+        const ext =
+          (file as File).type === "image/png" ? "png" : (file as File).type === "image/webp" ? "webp" : "jpg";
+        const safeEmail = (email || "admin").replace(/[^a-zA-Z0-9]/g, "_");
+        const path = `admin-${safeEmail}.${ext}`;
+
+        // Remove any previous admin photo variants before uploading the new one.
+        const { data: existing } = await supabaseAdmin.storage.from(BUCKET).list("");
+        const stale = (existing || []).filter((f: any) => f.name.startsWith(`admin-${safeEmail}.`));
+        if (stale.length) {
+          await supabaseAdmin.storage.from(BUCKET).remove(stale.map((f: any) => f.name));
+        }
+
+        const { error: upErr } = await supabaseAdmin.storage
+          .from(BUCKET)
+          .upload(path, file, { contentType: (file as File).type, upsert: true });
+        if (upErr) {
+          return NextResponse.json({ success: false, error: upErr.message }, { status: 500 });
+        }
+        avatarUrl = supabaseAdmin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+      }
+
+      return NextResponse.json({ success: true, avatar_url: avatarUrl });
+    }
+
     const enrollmentNumber = (form.get("enrollment_number") as string) || "";
     if (!enrollmentNumber) {
       return NextResponse.json({ success: false, error: "enrollment_number is required" }, { status: 400 });

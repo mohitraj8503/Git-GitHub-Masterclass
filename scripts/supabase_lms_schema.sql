@@ -118,3 +118,20 @@ create policy "Allow attendance insert for owners" on public.attendance for inse
 
 -- XP Logs policies
 create policy "Allow xp_logs read for owners" on public.xp_logs for select to anon using (true);
+
+-- 8. Admins Table
+create table if not exists public.admins (
+  id uuid default gen_random_uuid() primary key,
+  email text unique not null,
+  password_hash text not null,
+  name text default 'Admin' not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS on admins table
+alter table public.admins enable row level security;
+
+-- Admin policies
+drop policy if exists "Allow admins read for all" on public.admins;
+create policy "Allow admins read for all" on public.admins for select to anon, authenticated using (true);
+

@@ -5,8 +5,11 @@ import { supabaseAdmin } from "@/lib/supabaseServer";
 
 const FILE_PATH = path.join(process.cwd(), "data", "assignments.json");
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const dayStr = searchParams.get("day");
+
     if (supabaseAdmin) {
       const { data, error } = await supabaseAdmin
         .from("assignments")
@@ -14,7 +17,15 @@ export async function GET() {
         .order("created_at", { ascending: false });
 
       if (!error && data) {
-        return NextResponse.json({ success: true, assignments: data });
+        let list = data;
+        if (dayStr) {
+          const day = Number(dayStr);
+          list = data.filter((ass: any) => {
+            const match = ass.title.match(/Day\s*(\d+)/i);
+            return match && parseInt(match[1]) === day;
+          });
+        }
+        return NextResponse.json({ success: true, assignments: list });
       }
       console.warn("Supabase assignments query failed, falling back to local file. Error:", error);
     }
@@ -28,7 +39,14 @@ export async function GET() {
     }
 
     const content = fs.readFileSync(FILE_PATH, "utf8");
-    const assignments = JSON.parse(content);
+    let assignments = JSON.parse(content);
+    if (dayStr) {
+      const day = Number(dayStr);
+      assignments = assignments.filter((ass: any) => {
+        const match = ass.title.match(/Day\s*(\d+)/i);
+        return match && parseInt(match[1]) === day;
+      });
+    }
     return NextResponse.json({ success: true, assignments });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
@@ -37,7 +55,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { title, description, due_date, max_marks } = await request.json();
+    const { title, description, due_date, max_marks, session_day, submission_requirements } = await request.json();
     if (!title || !description || !due_date) {
       return NextResponse.json({ success: false, error: "Title, description, and due date are required." }, { status: 400 });
     }
@@ -47,6 +65,8 @@ export async function POST(request: Request) {
       description,
       due_date,
       max_marks: Number(max_marks) || 10,
+      session_day: session_day ? Number(session_day) : null,
+      submission_requirements: submission_requirements || { live_url: true, github_link: true, attachment: false },
       created_at: new Date().toISOString(),
     };
 
