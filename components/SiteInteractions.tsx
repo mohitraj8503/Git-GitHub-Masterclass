@@ -10,7 +10,9 @@ export default function SiteInteractions() {
     if (typeof window === "undefined") return;
 
     if (navigator.userAgent.indexOf("Windows") !== -1) {
-      document.documentElement.style.zoom = "80%";
+      document.documentElement.style.transformOrigin = "top left";
+      document.documentElement.style.transform = "scale(0.8)";
+      document.documentElement.style.width = "125%";
       document.documentElement.style.setProperty("--zoom-level", "0.8");
     }
 
