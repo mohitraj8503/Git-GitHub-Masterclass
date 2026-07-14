@@ -31,7 +31,7 @@ export default function Hero() {
       Unlock the Secrets of Git &amp; GitHub
     </div>
     <AssetImage src="/images/arrow-20down.svg" loading="lazy" alt="" className="icon-size-24" /></a>
-  <div data-w-id="1638c1ee-96b0-064c-d752-1facc15c1fc0" style={{WebkitTransform: 'translate3d(0, 0, 0) scale3d(0, 0, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0)', MozTransform: 'translate3d(0, 0, 0) scale3d(0, 0, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0)', msTransform: 'translate3d(0, 0, 0) scale3d(0, 0, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0)', transform: 'translate3d(0, 0, 0) scale3d(0, 0, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0)'}} className="hero-ball" />
+  <div data-w-id="1638c1ee-96b0-064c-d752-1facc15c1fc0" style={{WebkitTransform: 'translate3d(0, 0, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0)', MozTransform: 'translate3d(0, 0, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0)', msTransform: 'translate3d(0, 0, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0)', transform: 'translate3d(0, 0, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0)'}} className="hero-ball" />
   <div data-w-id="8637448a-5bde-aca1-4f4c-8517c6f4a1ce" className="black-overlay" />
     </>
   );

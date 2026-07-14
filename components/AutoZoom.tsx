@@ -5,7 +5,8 @@ import { useEffect } from "react";
 export default function AutoZoom() {
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const zoomLevel = 0.8;
+      const isMobile = window.innerWidth <= 768;
+      const zoomLevel = isMobile ? 1.0 : 0.8;
 
       // Apply CSS zoom to scale the entire page down by 20%
       // @ts-ignore

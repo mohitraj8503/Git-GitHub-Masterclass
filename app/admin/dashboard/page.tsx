@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import CountdownRing from "@/components/CountdownRing";
+import LivePollingAdmin from "@/components/LivePollingAdmin";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import {
   INSTITUTION_CODE,
@@ -1198,6 +1199,7 @@ export default function AdminDashboardPage() {
     { id: "assignments", label: "Assignments", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>, badge: pendingSubmissions.length > 0 },
     { id: "leaderboard", label: "Leaderboard", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> },
     { id: "students", label: "Students", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
+    { id: "polls", label: "Live Polls", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> },
     { id: "profile", label: "Profile", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
   ];
 
@@ -3154,6 +3156,14 @@ export default function AdminDashboardPage() {
             </div>
           );
         })()}
+
+        {/* ======= TAB: POLLS ======= */}
+        {currentTab === "polls" && (
+          <div className="db-projects-section animate-in fade-in duration-300">
+            <h3 className="db-section-title">Live Polling Dashboard</h3>
+            <LivePollingAdmin adminEmail={adminUser?.email || "admin@githubpages.in"} showToast={showToast} />
+          </div>
+        )}
 
         {/* ======= TAB: PROFILE ======= */}
         {currentTab === "profile" && (

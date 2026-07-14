@@ -4442,7 +4442,7 @@ a {
 
   .hero-ball {
     z-index: 0;
-    display: none;
+    display: block;
     bottom: -596px;
   }
 
@@ -5852,6 +5852,65 @@ a {
     transform: translateX(-50%) translateY(0);
   }
 }
+
+/* ==========================================================================
+   Custom Mobile & Phone Layout Optimizations (<= 768px)
+   ========================================================================== */
+@media screen and (max-width: 768px) {
+  /* Navbar */
+  .nav {
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
+  }
+  .nav-logo-block {
+    gap: 8px !important;
+  }
+  .nav-logo-block > div {
+    font-size: 17px !important;
+  }
+  .arka-jain-header-logo {
+    width: 105px !important;
+    height: 21px !important;
+  }
+
+  /* Hero Content */
+  .h1.home-hero-text {
+    font-size: clamp(52px, 15vw, 76px) !important;
+    letter-spacing: -2px !important;
+    line-height: 0.95 !important;
+    margin-top: 15px !important;
+    margin-bottom: 25px !important;
+  }
+  .hero-content-block {
+    flex-direction: column !important;
+    gap: 8px !important;
+    padding: 16px !important;
+  }
+  .hero-content-block-item {
+    font-size: 12px !important;
+  }
+
+  /* Who We Are & Mission Grid */
+  .who-we-are-content {
+    padding: 24px 16px !important;
+  }
+  .large-heding {
+    font-size: 52px !important;
+    letter-spacing: -1.5px !important;
+    line-height: 1.05 !important;
+  }
+
+  /* Spotlight Stats */
+  .highlights-block {
+    padding: 20px !important;
+  }
+  
+  /* Contact Form adjustments */
+  .contact-form-wrapper {
+    padding: 24px 16px !important;
+  }
+}
+
 
 
 
