@@ -17,6 +17,15 @@ function readJson(filePath: string): any[] {
   }
 }
 
+const normalizeEnrollmentNumber = (enrollment: string) => {
+  const clean = enrollment.trim().toUpperCase();
+  const digits = clean.replace(/\D/g, "");
+  if (digits) {
+    return `AJU/${digits}`;
+  }
+  return clean;
+};
+
 /**
  * GET /api/polls/live
  * Fetch all active live polls that target the current student.
@@ -24,30 +33,32 @@ function readJson(filePath: string): any[] {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const enrollmentNumber = searchParams.get("enrollmentNumber")?.trim().toUpperCase();
-
+    const enrollmentNumber = searchParams.get("enrollmentNumber");
+ 
     if (!enrollmentNumber) {
       return NextResponse.json({ success: false, error: "Enrollment number is required" }, { status: 400 });
     }
 
+    const targetEnrollment = normalizeEnrollmentNumber(enrollmentNumber);
+ 
     // 1. Fetch student info to verify targeting
     let student: any = null;
     if (supabaseAdmin) {
       const { data } = await supabaseAdmin
         .from("registrations")
         .select("*")
-        .eq("enrollment_number", enrollmentNumber)
+        .eq("enrollment_number", targetEnrollment)
         .maybeSingle();
       if (data) student = data;
     }
-
+ 
     if (!student) {
       const regs = readJson(REGS_FILE);
       student = regs.find(
-        (r: any) => (r.enrollmentNumber || r.enrollment_number || "").toUpperCase() === enrollmentNumber
+        (r: any) => normalizeEnrollmentNumber(r.enrollmentNumber || r.enrollment_number || "") === targetEnrollment
       );
     }
-
+ 
     if (!student) {
       return NextResponse.json({ success: false, error: "Registration not found" }, { status: 404 });
     }
@@ -115,7 +126,7 @@ export async function GET(request: Request) {
       const pollVotes = votes.filter((v: any) => v.poll_id === poll.id);
 
       // Check if current student already voted
-      const studentVotes = pollVotes.filter((v: any) => v.student_id === student.id || v.student_id === enrollmentNumber);
+      const studentVotes = pollVotes.filter((v: any) => v.student_id === student.id || v.student_id === targetEnrollment);
       const hasVoted = studentVotes.length > 0;
 
       // Group votes by option to show live counts / percentages

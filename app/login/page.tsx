@@ -20,6 +20,15 @@ export default function LoginPage() {
   // If already logged in via NextAuth session → redirect to student dashboard
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
+      const userReg = {
+        name: session.user.name,
+        email: session.user.email,
+        enrollmentNumber: (session.user as any).enrollmentNumber,
+        branch: (session.user as any).branch,
+        yearOfStudy: (session.user as any).yearOfStudy,
+        role: (session.user as any).role || "student",
+      };
+      localStorage.setItem("user_registration", JSON.stringify(userReg));
       router.push("/dashboard");
     }
   }, [session, status, router]);
@@ -36,10 +45,23 @@ export default function LoginPage() {
           router.push("/dashboard");
         }
       } catch {
-        router.push("/register");
+        localStorage.removeItem("user_registration");
       }
     }
   }, [router]);
+
+  // Handle NextAuth login error parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get("error");
+    if (error) {
+      if (error === "AccessDenied") {
+        setErrorMsg("This email is not registered/imported for the workshop. Please contact the administrator.");
+      } else {
+        setErrorMsg(`Login failed: ${error}`);
+      }
+    }
+  }, []);
 
   // Fix full-height layout
   useEffect(() => {
@@ -117,7 +139,7 @@ export default function LoginPage() {
     setOauthLoading(provider);
     setErrorMsg("");
     try {
-      await signIn(provider, { callbackUrl: "/register" });
+      await signIn(provider, { callbackUrl: "/dashboard" });
     } catch (err) {
       setErrorMsg("OAuth sign-in failed. Please try again.");
     } finally {
@@ -212,22 +234,6 @@ export default function LoginPage() {
               <p className="register-desc" style={{ fontWeight: 500, fontSize: "16px" }}>
                 Access your Student Space using your University Enrollment Number and Phone Number.
               </p>
-              <div style={{
-                margin: "12px 0",
-                padding: "10px",
-                background: "#f7f6f1",
-                borderRadius: "8px",
-                border: "1.5px solid var(--black)",
-                textAlign: "center",
-              }}>
-                <Link href="/register" style={{
-                  color: "var(--colors--orange)",
-                  fontWeight: 700,
-                  textDecoration: "underline",
-                }}>
-                  Don't have an account? Click here to Register
-                </Link>
-              </div>
             </div>
 
             {/* Error Message */}
@@ -372,7 +378,7 @@ export default function LoginPage() {
             </button>
 
             <p style={{ fontSize: "11px", color: "rgba(0,0,0,0.4)", textAlign: "center", marginTop: "10px", lineHeight: "1.5" }}>
-              OAuth sign-in creates a student account automatically. Admin login only via credentials above.
+              OAuth sign-in requires your email to be registered/imported first. Admin login only via credentials above.
             </p>
           </form>
         </div>

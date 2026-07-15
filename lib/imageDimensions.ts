@@ -386,5 +386,41 @@ export const imageDimensions: Record<string, { width: number; height: number }> 
   "/images/rakhi_jha.jpg": {
     "width": 682,
     "height": 1024
+  },
+  "/Team/Ayush_Singh.jpeg": {
+    "width": 1200,
+    "height": 1600
+  },
+  "/Team/suditisrivastava.jpeg": {
+    "width": 960,
+    "height": 1280
+  },
+  "/Team/Farhan Khalid.jpeg": {
+    "width": 677,
+    "height": 1183
+  },
+  "/Team/Riteeka.png": {
+    "width": 1024,
+    "height": 1536
+  },
+  "/Team/Sayantani De ( Facaulty Member ).png": {
+    "width": 1122,
+    "height": 1402
+  },
+  "/Team/Aman Monazir.png": {
+    "width": 1024,
+    "height": 1536
+  },
+  "/Team/Ayush_Singh.png": {
+    "width": 1086,
+    "height": 1448
+  },
+  "/Team/Rishika Kumari.png": {
+    "width": 1024,
+    "height": 1536
+  },
+  "/Team/suditisrivastava.png": {
+    "width": 1086,
+    "height": 1448
   }
 };

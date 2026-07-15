@@ -80,10 +80,9 @@ export default function ContactSection() {
               </div>
             </div>
           </div>
-          <div data-poster-url="/images/6976368-uhd_1440_1920_25fps-poster-00001.jpg" data-video-urls="/images/6976368-uhd_1440_1920_25fps-transcode.mp4,/images/6976368-uhd_1440_1920_25fps-transcode.webm" data-autoplay="true" data-loop="true" data-wf-ignore="true" className="contact-video w-background-video w-background-video-atom">
+          <div data-poster-url="/images/6976368-uhd_1440_1920_25fps-poster-00001.jpg" data-video-urls="/Video.mp4" data-autoplay="true" data-loop="true" data-wf-ignore="true" className="contact-video w-background-video w-background-video-atom">
             <video id="679fedca-8de7-34d3-c77a-2c5a5af7253b-video" autoPlay loop style={{backgroundImage: 'url("/images/6976368-uhd_1440_1920_25fps-poster-00001.jpg")'}} muted playsInline data-wf-ignore="true" data-object-fit="cover">
-              <source src="/images/6976368-uhd_1440_1920_25fps-transcode.mp4" data-wf-ignore="true" />
-              <source src="/images/6976368-uhd_1440_1920_25fps-transcode.webm" data-wf-ignore="true" />
+              <source src="/Video.mp4" data-wf-ignore="true" />
             </video>
           </div>
         </div>

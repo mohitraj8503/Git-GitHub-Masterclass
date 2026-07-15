@@ -74,8 +74,8 @@ const handler = NextAuth({
       }
 
       if (!registration) {
-        console.info(`OAuth sign-in for ${userEmail} has no matching registration yet; waiting for manual registration before linking provider.`);
-        return true;
+        console.info(`OAuth sign-in for ${userEmail} has no matching registration. Rejecting sign-in.`);
+        return false;
       } else if (providerField && (!registration[providerField] || registration[providerField] !== providerId)) {
         const updatePayload: Record<string, any> = {};
         updatePayload[providerField] = providerId;

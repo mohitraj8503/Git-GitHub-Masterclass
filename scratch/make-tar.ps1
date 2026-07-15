@@ -1,5 +1,5 @@
 $src = "C:\Users\mohit\Documents\Github Masterclass\Git-GitHub-Masterclass-main"
-$dest = "C:\Users\mohit\Desktop\Git-GitHub-Masterclass-deploy.tar.gz"
+$dest = "C:\Users\mohit\Desktop\github-masterclass-v2.tar.gz"
 $temp = "C:\Users\mohit\Desktop\_deploy_temp"
 
 # Clean up previous
@@ -10,7 +10,7 @@ if (Test-Path $temp) { Remove-Item $temp -Recurse -Force }
 New-Item -ItemType Directory -Path $temp | Out-Null
 
 # Folders to exclude
-$excludeDirs = @('.next', 'node_modules', '.git', 'scratch', '.env.local')
+$excludeDirs = @('.next', 'node_modules', '.git', 'scratch')
 
 # Copy files, excluding unwanted dirs
 Get-ChildItem -Path $src -Force | Where-Object {
@@ -24,14 +24,18 @@ Get-ChildItem -Path $src -Force | Where-Object {
     }
 }
 
-# Use tar to create .tar.gz (available on Windows 10+)
-Set-Location $temp
-tar -czf $dest *
+# Create tar.gz using native Windows bsdtar
+# -c: create, -z: compress with gzip, -f: file
+# -C: change to directory first so we don't store absolute paths
+Start-Process -FilePath "tar.exe" -ArgumentList "-czf", "`"$dest`"", "-C", "`"$temp`"", "." -NoNewWindow -Wait
 
 # Clean up temp
-Set-Location $src
 Remove-Item $temp -Recurse -Force
 
-$size = [math]::Round((Get-Item $dest).Length / 1MB, 2)
-Write-Host "tar.gz created at: $dest"
-Write-Host "Size: ${size} MB"
+if (Test-Path $dest) {
+    $size = [math]::Round((Get-Item $dest).Length / 1MB, 2)
+    Write-Host "Tarball created at: $dest"
+    Write-Host "Size: ${size} MB"
+} else {
+    Write-Error "Failed to create tarball"
+}

@@ -26,9 +26,18 @@ function writeJson(filePath: string, data: any) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
 }
 
+const normalizeEnrollmentNumber = (enrollment: string) => {
+  const clean = enrollment.trim().toUpperCase();
+  const digits = clean.replace(/\D/g, "");
+  if (digits) {
+    return `AJU/${digits}`;
+  }
+  return clean;
+};
+
 const VoteSchema = z.object({
   enrollmentNumber: z.string().min(1),
-  optionIds: z.array(z.string().uuid())
+  optionIds: z.array(z.string())
 });
 
 /**
@@ -52,7 +61,7 @@ export async function POST(
     }
 
     const { enrollmentNumber, optionIds } = result.data;
-    const studentEnrollment = enrollmentNumber.trim().toUpperCase();
+    const targetEnrollment = normalizeEnrollmentNumber(enrollmentNumber);
 
     // 1. Fetch student registration info
     let student: any = null;
@@ -60,21 +69,21 @@ export async function POST(
       const { data } = await supabaseAdmin
         .from("registrations")
         .select("id")
-        .eq("enrollment_number", studentEnrollment)
+        .eq("enrollment_number", targetEnrollment)
         .maybeSingle();
       if (data) student = data;
     }
     if (!student) {
       const regs = readJson(REGS_FILE);
       student = regs.find(
-        (r: any) => (r.enrollmentNumber || r.enrollment_number || "").toUpperCase() === studentEnrollment
+        (r: any) => normalizeEnrollmentNumber(r.enrollmentNumber || r.enrollment_number || "") === targetEnrollment
       );
     }
     if (!student) {
       return NextResponse.json({ success: false, error: "Student registration not found" }, { status: 404 });
     }
 
-    const studentId = student.id || studentEnrollment;
+    const studentId = student.id || targetEnrollment;
 
     // 2. Fetch the poll details
     let poll: any = null;

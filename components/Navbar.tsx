@@ -72,9 +72,6 @@ export default function Navbar() {
 function ShuffleCapsule() {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentMode, setCurrentMode] = useState<"login" | "register">("login");
-  const [isExpanded, setIsExpanded] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem("user_registration");
@@ -82,59 +79,6 @@ function ShuffleCapsule() {
       setIsLoggedIn(true);
     }
   }, []);
-
-  // Handle auto shuffling when not expanded and not logged in
-  useEffect(() => {
-    if (isLoggedIn || isExpanded) return;
-    const interval = setInterval(() => {
-      setCurrentMode((prev) => (prev === "login" ? "register" : "login"));
-    }, 2500);
-    return () => clearInterval(interval);
-  }, [isLoggedIn, isExpanded]);
-
-  // Handle outside clicks to collapse mobile state
-  useEffect(() => {
-    if (!isExpanded) return;
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setIsExpanded(false);
-      }
-    };
-    document.addEventListener("click", handleOutsideClick);
-    return () => document.removeEventListener("click", handleOutsideClick);
-  }, [isExpanded]);
-
-  const handleLeftClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (isLoggedIn) {
-      router.push("/dashboard");
-      return;
-    }
-
-    // Check if it's a touch pointer
-    const isTouch = window.matchMedia("(pointer: coarse)").matches;
-    if (isTouch) {
-      setIsExpanded(true);
-    } else {
-      router.push("/login");
-    }
-  };
-
-  const handleRightClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (isLoggedIn) return;
-    router.push("/register");
-  };
-
-  const handleMobileNav = (mode: "login" | "register", e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (mode === "login") {
-      router.push("/login");
-    } else {
-      router.push("/register");
-    }
-    setIsExpanded(false);
-  };
 
   if (isLoggedIn) {
     return (
@@ -145,43 +89,8 @@ function ShuffleCapsule() {
   }
 
   return (
-    <div ref={wrapperRef} className="shuffle-capsule-wrapper">
-      {isExpanded ? (
-        <div className="button secondary w-button shuffle-capsule-expanded">
-          <span 
-            onClick={(e) => handleMobileNav("login", e)} 
-            className="shuffle-capsule-link"
-          >
-            LOGIN
-          </span>
-          <span className="shuffle-capsule-separator">|</span>
-          <span 
-            onClick={(e) => handleMobileNav("register", e)} 
-            className="shuffle-capsule-link"
-          >
-            REGISTER
-          </span>
-        </div>
-      ) : (
-        <div 
-          onClick={handleLeftClick}
-          onContextMenu={handleRightClick}
-          className="button secondary w-button shuffle-capsule-collapsed"
-        >
-          <div className="shuffle-capsule-text-wrapper">
-            <span className={`shuffle-capsule-text ${currentMode === "login" ? "active" : ""}`}>
-              LOGIN
-            </span>
-            <span className={`shuffle-capsule-text ${currentMode === "register" ? "active" : ""}`}>
-              REGISTER
-            </span>
-          </div>
-          {/* Tooltip hint visible on desktop hover */}
-          <div className="shuffle-capsule-tooltip">
-            Left Click: Login | Right Click: Register
-          </div>
-        </div>
-      )}
-    </div>
+    <a href="/login" className="button secondary w-button">
+      LOGIN SPACE
+    </a>
   );
 }

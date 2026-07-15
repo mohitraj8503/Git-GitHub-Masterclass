@@ -11,6 +11,10 @@ export default function RegisterPage() {
   const { data: session, status } = useSession();
 
   useEffect(() => {
+    router.replace("/login");
+  }, [router]);
+
+  useEffect(() => {
     const origBodyBg = document.body.style.backgroundColor;
     const origHtmlBg = document.documentElement.style.backgroundColor;
     document.body.style.backgroundColor = "#ffd446";

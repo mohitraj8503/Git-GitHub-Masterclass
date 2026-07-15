@@ -383,8 +383,8 @@ function initAuthStatus() {
   const isRegistered = localStorage.getItem("user_registration");
   if (isRegistered) {
     try {
-      // Find all registration buttons & update text
-      const regButtons = document.querySelectorAll("a[href='/register']");
+      // Find all registration and login buttons & update text
+      const regButtons = document.querySelectorAll("a[href='/register'], a[href='/login']");
       regButtons.forEach((btn: any) => {
         btn.setAttribute("href", "/dashboard");
       });
@@ -392,11 +392,12 @@ function initAuthStatus() {
         const textWrapper = btn.querySelector(".regular-xl, .medium-m-uppercase, .regular-s-uppercase");
         if (textWrapper) {
           const txt = textWrapper.textContent.trim().toUpperCase();
-          if (txt === "REGISTER NOW" || txt === "REGISTER") {
+          if (txt === "REGISTER NOW" || txt === "REGISTER" || txt === "LOGIN SPACE" || txt === "LOGIN NOW" || txt === "ACCESS SPACE") {
             textWrapper.textContent = "MY ACCOUNT";
           }
         } else {
-          if (btn.textContent.trim().toUpperCase() === "REGISTER NOW") {
+          const txt = btn.textContent.trim().toUpperCase();
+          if (txt === "REGISTER NOW" || txt === "REGISTER" || txt === "LOGIN SPACE" || txt === "LOGIN NOW" || txt === "ACCESS SPACE") {
             btn.textContent = "My Account";
           }
         }
@@ -404,7 +405,8 @@ function initAuthStatus() {
       
       const textElements = document.querySelectorAll(".regular-xl, .medium-m-uppercase");
       textElements.forEach((el: any) => {
-        if (el.textContent.trim().toUpperCase() === "REGISTER NOW") {
+        const txt = el.textContent.trim().toUpperCase();
+        if (txt === "REGISTER NOW" || txt === "LOGIN SPACE" || txt === "LOGIN NOW" || txt === "ACCESS SPACE") {
           el.textContent = "MY ACCOUNT";
         }
       });

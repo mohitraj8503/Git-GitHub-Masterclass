@@ -5,6 +5,25 @@ import bcrypt from "bcryptjs";
 import { supabaseAdmin } from "@/lib/supabaseServer";
 import { setAdminSession } from "@/lib/session";
 
+const normalizeEnrollmentNumber = (enrollment: string) => {
+  const clean = enrollment.trim().toUpperCase();
+  const digits = clean.replace(/\D/g, "");
+  if (digits) {
+    return `AJU/${digits}`;
+  }
+  return clean;
+};
+
+const normalizePhoneNumber = (phone: string) => {
+  let digits = phone.replace(/\D/g, "").trim();
+  if (digits.length === 12 && digits.startsWith("91")) {
+    digits = digits.substring(2);
+  } else if (digits.length === 11 && digits.startsWith("0")) {
+    digits = digits.substring(1);
+  }
+  return digits;
+};
+
 export async function POST(request: Request) {
   try {
     const { username, password } = await request.json();
@@ -70,21 +89,21 @@ export async function POST(request: Request) {
     }
 
     // ---- STUDENT AUTH FLOW ----
-    const uppercaseUsername = cleanUsername.toUpperCase();
+    const targetEnrollment = normalizeEnrollmentNumber(cleanUsername);
+    const targetPhone = normalizePhoneNumber(cleanPassword);
 
     // 1. Try Supabase
     if (supabaseAdmin) {
       const { data: profile, error } = await supabaseAdmin
         .from("registrations")
         .select("*")
-        .eq("enrollment_number", uppercaseUsername)
+        .eq("enrollment_number", targetEnrollment)
         .maybeSingle();
 
       if (profile && !error) {
-        const cleanDbPhone = (profile.phone_number || "").replace(/^(\+91|0)/, "").trim();
-        const cleanInputPhone = cleanPassword.replace(/^(\+91|0)/, "").trim();
+        const cleanDbPhone = normalizePhoneNumber(profile.phone_number || "");
 
-        if (cleanDbPhone === cleanInputPhone) {
+        if (cleanDbPhone === targetPhone) {
           return NextResponse.json({
             success: true,
             user: {
@@ -108,11 +127,11 @@ export async function POST(request: Request) {
       const fileData = fs.readFileSync(regFilePath, "utf8");
       const registrations = JSON.parse(fileData);
 
-      const found = registrations.find(
-        (r: any) =>
-          r.enrollmentNumber && r.enrollmentNumber.trim().toUpperCase() === uppercaseUsername &&
-          r.phoneNumber && r.phoneNumber.trim() === cleanPassword
-      );
+      const found = registrations.find((r: any) => {
+        const rEnroll = normalizeEnrollmentNumber(r.enrollmentNumber || r.enrollment_number || "");
+        const rPhone = normalizePhoneNumber(r.phoneNumber || r.phone_number || "");
+        return rEnroll === targetEnrollment && rPhone === targetPhone;
+      });
 
       if (found) {
         return NextResponse.json({

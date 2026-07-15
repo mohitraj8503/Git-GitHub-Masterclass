@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import AssetImage from "@/components/AssetImage";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import CountdownRing from "@/components/CountdownRing";
@@ -42,14 +43,39 @@ const SCHEDULE_VENUE = "Computer Lab 2, Room No. 329, Block Baudhayana, Arka Jai
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
 
   // Auth gate: only an actual registered user (saved on sign-up) may view this.
   const [registeredUser, setRegisteredUser] = useState<any>();
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
+    if (status === "authenticated" && session?.user) {
+      const userReg = {
+        name: session.user.name,
+        email: session.user.email,
+        enrollmentNumber: (session.user as any).enrollmentNumber,
+        branch: (session.user as any).branch,
+        yearOfStudy: (session.user as any).yearOfStudy,
+        role: (session.user as any).role || "student",
+      };
+      localStorage.setItem("user_registration", JSON.stringify(userReg));
+      setRegisteredUser(userReg);
+    }
+  }, [session, status]);
+
+  useEffect(() => {
     document.body.classList.add("dashboard-body-active");
     document.documentElement.classList.add("dashboard-body-active");
+
+    return () => {
+      document.body.classList.remove("dashboard-body-active");
+      document.documentElement.classList.remove("dashboard-body-active");
+    };
+  }, []);
+
+  useEffect(() => {
+    if (status === "loading") return;
 
     const saved = localStorage.getItem("user_registration");
     if (saved) {
@@ -60,22 +86,18 @@ export default function DashboardPage() {
         localStorage.removeItem("user_registration");
         setRegisteredUser(null);
       }
-    } else {
+    } else if (status !== "authenticated") {
       setRegisteredUser(null);
     }
-
     setChecked(true);
-    return () => {
-      document.body.classList.remove("dashboard-body-active");
-      document.documentElement.classList.remove("dashboard-body-active");
-    };
-  }, []);
+  }, [status]);
 
   useEffect(() => {
+    if (status === "loading") return;
     if (checked && registeredUser === null) {
-      router.replace("/register");
+      router.replace("/login");
     }
-  }, [checked, registeredUser, router]);
+  }, [checked, registeredUser, router, status]);
 
   // Tab state
   const [currentTab, setCurrentTab] = useState("home");
@@ -318,16 +340,17 @@ export default function DashboardPage() {
 
   const loadLmsData = useCallback(async () => {
     if (!registeredUser) return;
+    const enrollment = registeredUser.enrollmentNumber || registeredUser.enrollment_number || "";
     try {
       const [annRes, assRes, subRes, attRes, peerRes, resRes, taskRes, dailyRes] = await Promise.all([
         fetch("/api/announcements").then((r) => r.json()),
         fetch("/api/assignments").then((r) => r.json()),
-        fetch(`/api/submissions?student_id=${registeredUser.enrollmentNumber}`).then((r) => r.json()),
-        fetch(`/api/attendance?enrollment_number=${encodeURIComponent(registeredUser.enrollmentNumber)}`).then((r) => r.json()),
+        fetch(`/api/submissions?student_id=${enrollment}`).then((r) => r.json()),
+        fetch(`/api/attendance?enrollment_number=${encodeURIComponent(enrollment)}`).then((r) => r.json()),
         fetch("/api/register").then((r) => r.json()),
         fetch("/api/resources").then((r) => r.json()),
-        fetch(`/api/tasks/complete?enrollmentNumber=${encodeURIComponent(registeredUser.enrollmentNumber)}`).then((r) => r.json()),
-        fetch(`/api/daily-tasks?enrollment_number=${encodeURIComponent(registeredUser.enrollmentNumber)}`).then((r) => r.json()),
+        fetch(`/api/tasks/complete?enrollmentNumber=${encodeURIComponent(enrollment)}`).then((r) => r.json()),
+        fetch(`/api/daily-tasks?enrollment_number=${encodeURIComponent(enrollment)}`).then((r) => r.json()),
       ]);
 
       if (annRes.success) setAnnouncements(annRes.announcements);
@@ -336,7 +359,7 @@ export default function DashboardPage() {
       if (attRes.success) setAttendance(attRes.attendance);
       if (peerRes.success && Array.isArray(peerRes.registrations)) {
         setPeers(peerRes.registrations);
-        const myEnroll = registeredUser.enrollmentNumber.trim().toLowerCase();
+        const myEnroll = enrollment.trim().toLowerCase();
         const currentRecord = peerRes.registrations.find(
           (p: any) =>
             (p.enrollmentNumber || p.enrollment_number || "").trim().toLowerCase() === myEnroll
