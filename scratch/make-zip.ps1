@@ -1,5 +1,5 @@
 $src = "C:\Users\mohit\Documents\Github Masterclass\Git-GitHub-Masterclass-main"
-$dest = "C:\Users\mohit\Desktop\Git-GitHub-Masterclass-deploy.zip"
+$dest = "C:\Users\mohit\Desktop\github-masterclass-v2.zip"
 $temp = "C:\Users\mohit\Desktop\_deploy_temp"
 
 # Clean up previous

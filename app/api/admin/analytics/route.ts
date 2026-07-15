@@ -4,6 +4,8 @@ import path from "path";
 import { supabaseAdmin } from "@/lib/supabaseServer";
 import { WORKSHOP_DAYS } from "@/lib/config";
 
+export const dynamic = "force-dynamic";
+
 const TASK_XP_REWARDS: Record<string, number> = {
   mark_attendance: 20,
   download_slides: 10,

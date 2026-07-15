@@ -7,6 +7,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import CountdownRing from "@/components/CountdownRing";
 import LivePollingAdmin from "@/components/LivePollingAdmin";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { StudentAvatar } from "@/components/StudentAvatar";
 import {
   INSTITUTION_CODE,
   WORKSHOP_DAYS,
@@ -91,6 +92,70 @@ export default function AdminDashboardPage() {
   const [selectedAnalyticsDay, setSelectedAnalyticsDay] = useState<number | null>(null);
   const [updatingManualAtt, setUpdatingManualAtt] = useState<string | null>(null);
   const prevWindowRef = useRef<any>(null);
+
+  // Bulk and Inline grading states
+  const [subFilter, setSubFilter] = useState<"all" | "pending" | "reviewed">("all");
+  const [subSort, setSubSort] = useState<"newest" | "oldest">("oldest");
+  const [subSearch, setSubSearch] = useState("");
+  const [inlineGrades, setInlineGrades] = useState<Record<string, { marks: string; feedback: string }>>({});
+  const [savingInlineIds, setSavingInlineIds] = useState<Record<string, boolean>>({});
+  const [selectedSubIds, setSelectedSubIds] = useState<string[]>([]);
+  const [bulkMarks, setBulkMarks] = useState("");
+  const [bulkFeedback, setBulkFeedback] = useState("");
+  const [isSavingBulk, setIsSavingBulk] = useState(false);
+
+  // Excel Student Import states
+  const [importOpen, setImportOpen] = useState(false);
+  const [importStep, setImportStep] = useState<"upload" | "mapping" | "preview" | "summary">("upload");
+  const [excelHeaders, setExcelHeaders] = useState<string[]>([]);
+  const [excelRows, setExcelRows] = useState<any[]>([]);
+  const [mappedFields, setMappedFields] = useState<Record<string, string>>({
+    name: "",
+    email: "",
+    enrollment_number: "",
+    phone_number: "",
+    branch: "",
+    year_of_study: "",
+  });
+  const [isParsingExcel, setIsParsingExcel] = useState(false);
+  const [isImportingExcel, setIsImportingExcel] = useState(false);
+  const [importResult, setImportResult] = useState<any>(null);
+  
+  // Email Portal States
+  const [emailSubject, setEmailSubject] = useState("Welcome to the Git & GitHub Masterclass — See You Today at 12:30 PM! 🚀");
+  const [emailBody, setEmailBody] = useState(`Hello Everyone! 👋
+
+Welcome to the Git & GitHub Masterclass community! We're excited to have you join us for this 7-day journey.
+
+The Department of Engineering & IT, Arka Jain University, is hosting this hands-on workshop for B.Tech, BCA & Diploma students — and it all begins today.
+
+💻 What you'll learn:
+✅ Git & GitHub — Beginner to Advanced
+✅ Build & Deploy Your Own Portfolio Website
+✅ Open Source Contribution
+✅ Microsoft Learn Modules
+✅ Real-World Developer Workflow
+✅ Microsoft Developer Benefits
+
+⚠️ Important: Please bring your own laptop to every session — this is a fully hands-on workshop.
+
+📅 Date: 15th July 2026 (Day 1 of 7)
+🕧 Time: 12:30 PM
+📍 Venue: Computer Lab, Room No. 320, Block Baudhayan
+
+Resource Person: Mohit Raj (Microsoft Learn Student Ambassador)
+Faculty Coordinator: Prof. Rakhi Jha (Microsoft Learn Student Ambassador Faculty Lead)
+
+🌐 Track your progress, attendance, and assignments here:
+https://ajumicrosoft.in
+
+See you there — let's start building! 🚀`);
+  const [emailBadge, setEmailBadge] = useState("WORKSHOP STARTS TODAY");
+  const [emailTarget, setEmailTarget] = useState<"all" | "custom">("all");
+  const [selectedEmailRecipients, setSelectedEmailRecipients] = useState<Record<string, boolean>>({});
+  const [emailSubTab, setEmailSubTab] = useState<"compose" | "recipients">("compose");
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [emailTemplate, setEmailTemplate] = useState("custom");
   
   // Leaderboard enhancements
   const [awardingStudent, setAwardingStudent] = useState<any>(null);
@@ -119,6 +184,7 @@ export default function AdminDashboardPage() {
   const [newResUrl, setNewResUrl] = useState("");
   const [newResDay, setNewResDay] = useState(1);
   const [creatingRes, setCreatingRes] = useState(false);
+  const [editingResource, setEditingResource] = useState<any>(null);
 
   const [newAssTitle, setNewAssTitle] = useState("");
   const [newAssDesc, setNewAssDesc] = useState("");
@@ -1033,12 +1099,38 @@ export default function AdminDashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: newResTitle, type: newResType, url: newResUrl, session_number: newResDay }),
       });
-      if (res.ok) {
+      const data = await res.json();
+      if (res.ok && data.success && data.resource) {
         showToast("success", "Resource published successfully!");
+        setResources(prev => [data.resource, ...prev]);
         setNewResTitle(""); setNewResUrl("");
         loadData();
       } else {
-        showToast("error", "Failed to publish resource.");
+        showToast("error", data.error || "Failed to publish resource.");
+      }
+    } catch { showToast("error", "Network error."); }
+    finally { setCreatingRes(false); }
+  };
+
+  const handleUpdateResource = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingResource || !newResTitle || !newResType || !newResUrl) return;
+    setCreatingRes(true);
+    try {
+      const res = await fetch(`/api/resources/${editingResource.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newResTitle, type: newResType, url: newResUrl, session_number: newResDay }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.resource) {
+        showToast("success", "Resource updated successfully!");
+        setResources(prev => prev.map(r => r.id === editingResource.id ? data.resource : r));
+        setEditingResource(null);
+        setNewResTitle(""); setNewResUrl("");
+        loadData();
+      } else {
+        showToast("error", data.error || "Failed to update resource.");
       }
     } catch { showToast("error", "Network error."); }
     finally { setCreatingRes(false); }
@@ -1046,6 +1138,7 @@ export default function AdminDashboardPage() {
 
   const handleDeleteResource = async (id: string) => {
     if (!confirm("Are you sure you want to delete this resource?")) return;
+    setResources(prev => prev.filter(r => r.id !== id));
     try {
       const res = await fetch(`/api/resources/${id}`, {
         method: "DELETE",
@@ -1055,9 +1148,11 @@ export default function AdminDashboardPage() {
         loadData();
       } else {
         showToast("error", "Failed to delete resource.");
+        loadData();
       }
     } catch {
       showToast("error", "Network error.");
+      loadData();
     }
   };
 
@@ -1152,6 +1247,214 @@ export default function AdminDashboardPage() {
     finally { setGrading(false); }
   };
 
+  const handleSaveInline = async (subId: string) => {
+    const inlineData = inlineGrades[subId] || { marks: "", feedback: "" };
+    if (inlineData.marks === "") {
+      showToast("error", "Marks are required to grade.");
+      return;
+    }
+    setSavingInlineIds(prev => ({ ...prev, [subId]: true }));
+    try {
+      const res = await fetch("/api/admin/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          submission_id: subId,
+          marks_obtained: inlineData.marks,
+          mentor_feedback: inlineData.feedback,
+          manual_bonus_xp: 0
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast("success", "Grade saved!");
+        await loadData();
+        
+        // Auto focus the next inline input
+        setTimeout(() => {
+          const inputs = Array.from(document.querySelectorAll('.inline-marks-input')) as HTMLInputElement[];
+          const currentIndex = inputs.findIndex(el => el.getAttribute('data-sub-id') === subId);
+          if (currentIndex !== -1 && currentIndex < inputs.length - 1) {
+            inputs[currentIndex + 1].focus();
+            inputs[currentIndex + 1].select();
+          }
+        }, 100);
+      } else {
+        showToast("error", data.error || "Failed to save grade.");
+      }
+    } catch (err: any) {
+      showToast("error", err.message || "Network error.");
+    } finally {
+      setSavingInlineIds(prev => ({ ...prev, [subId]: false }));
+    }
+  };
+
+  const handleSaveBulk = async () => {
+    if (selectedSubIds.length === 0) {
+      showToast("error", "No submissions selected.");
+      return;
+    }
+    if (bulkMarks === "") {
+      showToast("error", "Bulk marks are required.");
+      return;
+    }
+    setIsSavingBulk(true);
+    let successCount = 0;
+    try {
+      for (const subId of selectedSubIds) {
+        const res = await fetch("/api/admin/evaluate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            submission_id: subId,
+            marks_obtained: bulkMarks,
+            mentor_feedback: bulkFeedback,
+            manual_bonus_xp: 0
+          }),
+        });
+        if (res.ok) {
+          successCount++;
+        }
+      }
+      showToast("success", `Successfully graded ${successCount} submissions!`);
+      setSelectedSubIds([]);
+      setBulkMarks("");
+      setBulkFeedback("");
+      await loadData();
+    } catch (err: any) {
+      showToast("error", "Error during bulk grading: " + err.message);
+    } finally {
+      setIsSavingBulk(false);
+    }
+  };
+
+  const handleSendEmail = async () => {
+    // Determine recipients list
+    let recipientEmails: string[] = [];
+    if (emailTarget === "all") {
+      recipientEmails = students.map((s: any) => s.email).filter(Boolean);
+    } else {
+      recipientEmails = students
+        .filter((s: any) => selectedEmailRecipients[s.id || s.enrollment_number])
+        .map((s: any) => s.email)
+        .filter(Boolean);
+    }
+
+    if (recipientEmails.length === 0) {
+      showToast("error", "No recipients selected.");
+      return;
+    }
+    if (!emailSubject.trim()) {
+      showToast("error", "Email subject is required.");
+      return;
+    }
+    if (!emailBody.trim()) {
+      showToast("error", "Email body is required.");
+      return;
+    }
+
+    setIsSendingEmail(true);
+    try {
+      const res = await fetch("/api/admin/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipients: recipientEmails,
+          subject: emailSubject,
+          body: emailBody,
+          badge: emailBadge,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast("success", `Broadcast email sent successfully to ${recipientEmails.length} students!`);
+        // Reset form
+        setEmailSubject("");
+        setEmailBody("");
+        setEmailBadge("");
+      } else {
+        showToast("error", data.error || "Failed to send email broadcast.");
+      }
+    } catch (err: any) {
+      showToast("error", err.message || "Network error occurred.");
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
+  const handleParseExcel = async (file: File) => {
+    setIsParsingExcel(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/admin/bulk-import", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setExcelHeaders(data.headers);
+        setExcelRows(data.allRows);
+        
+        // Auto-guess mapping based on headers
+        const guessMap: Record<string, string> = {
+          name: "",
+          email: "",
+          enrollment_number: "",
+          phone_number: "",
+          branch: "",
+          year_of_study: "",
+        };
+        data.headers.forEach((h: string) => {
+          const hl = h.toLowerCase();
+          if (hl.includes("full name") || hl.includes("student name") || hl.includes("name")) guessMap.name = h;
+          else if (hl.includes("email") || hl.includes("mail")) guessMap.email = h;
+          else if (hl.includes("enroll") || hl.includes("roll")) guessMap.enrollment_number = h;
+          else if (hl.includes("phone") || hl.includes("whatsapp") || hl.includes("mobile")) guessMap.phone_number = h;
+          else if (hl.includes("branch") || hl.includes("dept") || hl.includes("department")) guessMap.branch = h;
+          else if (hl.includes("year")) guessMap.year_of_study = h;
+        });
+        setMappedFields(guessMap);
+        setImportStep("mapping");
+      } else {
+        showToast("error", data.error || "Failed to parse Excel file.");
+      }
+    } catch (err: any) {
+      showToast("error", err.message || "Error parsing Excel.");
+    } finally {
+      setIsParsingExcel(false);
+    }
+  };
+
+  const handleExecuteImport = async () => {
+    setIsImportingExcel(true);
+    try {
+      const res = await fetch("/api/admin/bulk-import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "import",
+          data: excelRows,
+          mapping: mappedFields,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setImportResult(data);
+        setImportStep("summary");
+        showToast("success", "Bulk import completed!");
+        await loadData();
+      } else {
+        showToast("error", data.error || "Failed to process bulk import.");
+      }
+    } catch (err: any) {
+      showToast("error", err.message || "Error executing import.");
+    } finally {
+      setIsImportingExcel(false);
+    }
+  };
+
   const handleLogout = async () => {
     try { await fetch("/api/admin/logout", { method: "POST" }); } catch {}
     localStorage.removeItem("user_registration");
@@ -1199,6 +1502,7 @@ export default function AdminDashboardPage() {
     { id: "assignments", label: "Assignments", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>, badge: pendingSubmissions.length > 0 },
     { id: "leaderboard", label: "Leaderboard", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> },
     { id: "students", label: "Students", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
+    { id: "email", label: "Email Portal", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> },
     { id: "polls", label: "Live Polls", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> },
     { id: "profile", label: "Profile", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
   ];
@@ -2089,68 +2393,115 @@ export default function AdminDashboardPage() {
         {currentTab === "resources" && (
           <div className="db-projects-section">
             <h3 className="db-section-title">Resources Manager</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: "24px", alignItems: "start" }}>
-              <form onSubmit={handleCreateResource} className="modern-card" style={{ display: "block", padding: "24px", backgroundColor: "#fff" }}>
-                <h4 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: "800" }}>Publish New Resource</h4>
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: "24px", alignItems: "start" }} className="form-row-responsive">
+              <form onSubmit={editingResource ? handleUpdateResource : handleCreateResource} className="modern-card" style={{ display: "block", padding: "24px", backgroundColor: "#fff", border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "20px" }}>
+                <h4 style={{ margin: "0 0 16px 0", fontSize: "15px", fontWeight: "900", color: "var(--db-text-primary)" }}>
+                  {editingResource ? "✏️ Edit Resource" : "Publish New Resource"}
+                </h4>
+                <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                   <div>
-                    <label style={{ fontSize: "12px", fontWeight: "bold", display: "block", marginBottom: "4px" }}>Session Day*</label>
-                    <select value={newResDay} onChange={(e) => setNewResDay(Number(e.target.value))} className="form-input-text">
+                    <label style={{ fontSize: "11px", fontWeight: "800", display: "block", marginBottom: "6px", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Session Day*</label>
+                    <select value={newResDay} onChange={(e) => setNewResDay(Number(e.target.value))} className="form-input-text" style={{ background: "#fff", border: "1px solid #d1d5db", color: "#000", outline: "none", borderRadius: "10px", padding: "10px 12px", width: "100%" }}>
                       {SCHEDULE_DAYS.map(sd => <option key={sd.day} value={sd.day}>Day {sd.day} — {sd.title.split("—")[0]}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label style={{ fontSize: "12px", fontWeight: "bold", display: "block", marginBottom: "4px" }}>Resource Title*</label>
+                    <label style={{ fontSize: "11px", fontWeight: "800", display: "block", marginBottom: "6px", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Resource Title*</label>
                     <input type="text" required value={newResTitle} onChange={(e) => setNewResTitle(e.target.value)}
-                      placeholder="e.g. Day 1 Slides: Git Fundamentals" className="form-input-text" />
+                      placeholder="e.g. Day 1 Slides: Git Fundamentals" className="form-input-text" style={{ background: "#fff", border: "1px solid #d1d5db", color: "#000", outline: "none", borderRadius: "10px", padding: "10px 12px", width: "100%" }} />
                   </div>
                   <div>
-                    <label style={{ fontSize: "12px", fontWeight: "bold", display: "block", marginBottom: "4px" }}>Resource Type*</label>
-                    <select value={newResType} onChange={(e) => setNewResType(e.target.value)} className="form-input-text">
-                      {["PPT", "PDF", "Recording", "Link", "ZIP"].map(t => <option key={t} value={t}>{t}</option>)}
+                    <label style={{ fontSize: "11px", fontWeight: "800", display: "block", marginBottom: "6px", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Resource Type*</label>
+                    <select value={newResType} onChange={(e) => setNewResType(e.target.value)} className="form-input-text" style={{ background: "#fff", border: "1px solid #d1d5db", color: "#000", outline: "none", borderRadius: "10px", padding: "10px 12px", width: "100%" }}>
+                      {["PPT", "PDF", "Video", "Link", "Doc"].map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label style={{ fontSize: "12px", fontWeight: "bold", display: "block", marginBottom: "4px" }}>Resource URL*</label>
+                    <label style={{ fontSize: "11px", fontWeight: "800", display: "block", marginBottom: "6px", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Resource URL*</label>
                     <input type="url" required value={newResUrl} onChange={(e) => setNewResUrl(e.target.value)}
-                      placeholder="https://drive.google.com/..." className="form-input-text" />
+                      placeholder="https://drive.google.com/..." className="form-input-text" style={{ background: "#fff", border: "1px solid #d1d5db", color: "#000", outline: "none", borderRadius: "10px", padding: "10px 12px", width: "100%" }} />
                   </div>
-                  <button type="submit" disabled={creatingRes} className="explore-btn" style={{ marginTop: "8px", width: "100%", padding: "12px", borderRadius: "12px" }}>
-                    {creatingRes ? "Publishing…" : "Publish Resource"}
-                  </button>
+                  <div style={{ display: "flex", gap: "10px", marginTop: "6px" }}>
+                    <button type="submit" disabled={creatingRes} className="explore-btn" style={{ flex: 1, padding: "12px", borderRadius: "12px", fontWeight: "800" }}>
+                      {creatingRes ? "Saving…" : editingResource ? "Save Changes" : "Publish Resource"}
+                    </button>
+                    {editingResource && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingResource(null);
+                          setNewResTitle("");
+                          setNewResUrl("");
+                        }}
+                        style={{ padding: "0 16px", background: "#f1f5f9", border: "1.5px solid #cbd5e1", color: "#64748b", borderRadius: "12px", fontWeight: "800", cursor: "pointer" }}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
                 </div>
               </form>
-              <div className="db-project-list">
-                <h4 style={{ margin: "0 0 12px 0", fontSize: "14px", fontWeight: "800" }}>Published Resources ({resources.length})</h4>
-                {loadingResources ? <LoadingSpinner label="Loading resources…" /> : resources.length > 0 ? (
-                  resources.map((res: any) => (
-                    <div className="db-project-row" key={res.id} style={{ display: "block" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                        <h4 className="db-project-name">{res.title}</h4>
-                        <span className="db-activity-badge" style={{ backgroundColor: "#f7f6f1" }}>{res.type}</span>
-                      </div>
-                      {res.session_number && <div style={{ fontSize: "11px", color: "var(--db-text-muted)", fontWeight: "700", marginBottom: "4px" }}>Day {res.session_number}</div>}
-                      <a href={res.url || res.file_url} target="_blank" rel="noopener noreferrer"
-                        style={{ fontSize: "12px", color: "var(--db-accent-orange)", textDecoration: "underline", wordBreak: "break-all" }}>
-                        {res.url || res.file_url}
-                      </a>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px" }}>
-                        <div style={{ fontSize: "11px", color: "#999" }}>{new Date(res.created_at).toLocaleDateString()}</div>
-                        <button
-                          onClick={() => handleDeleteResource(res.id)}
-                          style={{
-                            background: "transparent", border: "none", color: "#ef4444",
-                            fontSize: "11px", fontWeight: "750", cursor: "pointer",
-                            padding: "2px 6px", borderRadius: "4px", transition: "all 0.2s"
-                          }}
-                          className="quick-action-btn"
-                        >
-                          🗑️ Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                ) : <div className="db-project-row">No resources published yet.</div>}
+              
+              {/* Published Resources List grouped by day */}
+              <div className="db-project-list" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <h4 style={{ margin: "0 0 4px 0", fontSize: "14px", fontWeight: "900", color: "var(--db-text-primary)", textTransform: "uppercase" }}>Published Resources</h4>
+                {loadingResources ? <LoadingSpinner label="Loading resources…" /> : (
+                  Array.from({ length: 7 }, (_, i) => i + 1).map(dayNum => {
+                    const dayRes = resources.filter((r: any) => Number(r.session_number) === dayNum);
+                    const count = dayRes.length;
+
+                    return (
+                      <details key={dayNum} open={count > 0} style={{ border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "16px", overflow: "hidden", background: "#fff" }}>
+                        <summary style={{ padding: "12px 16px", cursor: "pointer", background: "#f8fafc", fontWeight: "800", fontSize: "13px", display: "flex", justifyContent: "space-between", alignItems: "center", outline: "none", userSelect: "none" }}>
+                          <span style={{ color: "var(--db-text-primary)" }}>Day {dayNum} Resources</span>
+                          <span style={{ fontSize: "11px", fontWeight: "900", background: count > 0 ? "rgba(16,185,129,0.1)" : "#f1f5f9", color: count > 0 ? "#10b981" : "#64748b", padding: "2px 8px", borderRadius: "10px", border: count > 0 ? "1px solid rgba(16,185,129,0.2)" : "1px solid rgba(0,0,0,0.06)" }}>
+                            {count} {count === 1 ? 'Resource' : 'Resources'}
+                          </span>
+                        </summary>
+                        <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: "10px", borderTop: "1.5px solid rgba(0,0,0,0.06)" }}>
+                          {count > 0 ? (
+                            dayRes.map((res: any) => (
+                              <div key={res.id} style={{ display: "flex", flexDirection: "column", gap: "6px", padding: "12px", background: "#f9fafb", borderRadius: "12px", border: "1px solid rgba(0,0,0,0.02)" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                                  <span style={{ fontWeight: "800", fontSize: "13px", color: "var(--db-text-primary)" }}>{res.title}</span>
+                                  <span className="db-activity-badge" style={{ backgroundColor: "#f1f5f9", color: "#475569", fontSize: "9px", padding: "2px 6px", fontWeight: "800" }}>{res.type}</span>
+                                </div>
+                                <a href={res.url || res.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: "11px", color: "var(--db-accent-orange)", textDecoration: "underline", wordBreak: "break-all", fontWeight: "600" }}>
+                                  {res.url || res.file_url}
+                                </a>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px", fontSize: "10px", color: "#94a3b8" }}>
+                                  <span>{new Date(res.created_at).toLocaleDateString()}</span>
+                                  <div>
+                                    <button
+                                      onClick={() => {
+                                        setEditingResource(res);
+                                        setNewResTitle(res.title);
+                                        setNewResType(res.type);
+                                        setNewResUrl(res.url || res.file_url);
+                                        setNewResDay(res.session_number || 1);
+                                      }}
+                                      style={{ background: "none", border: "none", color: "var(--db-accent-orange)", cursor: "pointer", fontWeight: "800", marginRight: "12px" }}
+                                    >
+                                      ✏️ Edit
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteResource(res.id)}
+                                      style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontWeight: "800" }}
+                                    >
+                                      🗑️ Delete
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div style={{ fontSize: "11px", color: "#94a3b8", textAlign: "center", padding: "8px 0" }}>No resources published for Day {dayNum}.</div>
+                          )}
+                        </div>
+                      </details>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
@@ -2348,114 +2699,283 @@ export default function AdminDashboardPage() {
               </div>
 
               {/* Submissions Section Table */}
-              {selectedAssignmentId && selectedAss && (
-                <div className="modern-card animate-in slide-in-from-bottom duration-300" style={{ marginTop: "24px", padding: "24px", backgroundColor: "#fff", border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "24px", display: "block" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: "15px", fontWeight: "900", color: "var(--db-text-primary)", textTransform: "uppercase" }}>
-                        Submissions for: <span style={{ color: "var(--db-accent-orange)" }}>{selectedAss.title}</span>
-                      </h4>
-                      <span style={{ fontSize: "11px", color: "var(--db-text-muted)", fontWeight: "600" }}>
-                        Showing {selectedAssSubs.length} submissions
-                      </span>
+              {selectedAssignmentId && selectedAss && (() => {
+                // Filter and sort logic
+                let filteredSubs = [...selectedAssSubs];
+                if (subFilter === "pending") {
+                  filteredSubs = filteredSubs.filter(s => s.marks_obtained === null || s.marks_obtained === undefined);
+                } else if (subFilter === "reviewed") {
+                  filteredSubs = filteredSubs.filter(s => s.marks_obtained !== null && s.marks_obtained !== undefined);
+                }
+
+                if (subSearch.trim()) {
+                  const queryStr = subSearch.toLowerCase().trim();
+                  filteredSubs = filteredSubs.filter(s => {
+                    const student = students.find(st => st.id === s.student_id) || {};
+                    const name = (student.name || "").toLowerCase();
+                    const enroll = (student.enrollment_number || student.enrollmentNumber || "").toLowerCase();
+                    return name.includes(queryStr) || enroll.includes(queryStr);
+                  });
+                }
+
+                filteredSubs.sort((a, b) => {
+                  const timeA = new Date(a.submitted_at).getTime();
+                  const timeB = new Date(b.submitted_at).getTime();
+                  return subSort === "newest" ? timeB - timeA : timeA - timeB;
+                });
+
+                const gradedCount = selectedAssSubs.filter(s => s.marks_obtained !== null && s.marks_obtained !== undefined).length;
+                const totalCount = selectedAssSubs.length;
+
+                const toggleSelectAll = () => {
+                  if (selectedSubIds.length === filteredSubs.length) {
+                    setSelectedSubIds([]);
+                  } else {
+                    setSelectedSubIds(filteredSubs.map(s => s.id));
+                  }
+                };
+
+                const toggleSelectSub = (subId: string) => {
+                  setSelectedSubIds(prev =>
+                    prev.includes(subId) ? prev.filter(id => id !== subId) : [...prev, subId]
+                  );
+                };
+
+                return (
+                  <div className="modern-card animate-in slide-in-from-bottom duration-300" style={{ marginTop: "24px", padding: "24px", backgroundColor: "#fff", border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "24px", display: "block" }}>
+                    
+                    {/* Header with Title and Progress Counter */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: "15px", fontWeight: "900", color: "var(--db-text-primary)", textTransform: "uppercase" }}>
+                          Submissions for: <span style={{ color: "var(--db-accent-orange)" }}>{selectedAss.title}</span>
+                        </h4>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "4px" }}>
+                          <span style={{ fontSize: "11px", color: "var(--db-text-muted)", fontWeight: "600" }}>
+                            Showing {filteredSubs.length} of {totalCount} submissions
+                          </span>
+                          <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--db-accent-green)", backgroundColor: "rgba(16,185,129,0.1)", padding: "1px 8px", borderRadius: "10px" }}>
+                            Graded {gradedCount} of {totalCount}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setSelectedAssignmentId("")}
+                        style={{ padding: "6px 12px", background: "#f1f5f9", border: "none", borderRadius: "8px", fontSize: "11px", fontWeight: "800", cursor: "pointer", color: "#64748b" }}
+                      >
+                        ✕ Close Panel
+                      </button>
                     </div>
-                    <button
-                      onClick={() => setSelectedAssignmentId("")}
-                      style={{ padding: "6px 12px", background: "#f1f5f9", border: "none", borderRadius: "8px", fontSize: "11px", fontWeight: "800", cursor: "pointer", color: "#64748b" }}
-                    >
-                      ✕ Close Panel
-                    </button>
-                  </div>
 
-                  <div className="table-responsive" style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
-                      <thead>
-                        <tr style={{ borderBottom: "2px solid #f1f5f9", color: "var(--db-text-muted)" }}>
-                          <th style={{ padding: "12px 8px", fontWeight: "800" }}>Student Details</th>
-                          <th style={{ padding: "12px 8px", fontWeight: "800" }}>Artifact Links</th>
-                          <th style={{ padding: "12px 8px", fontWeight: "800" }}>Submitted At</th>
-                          <th style={{ padding: "12px 8px", fontWeight: "800" }}>Status</th>
-                          <th style={{ padding: "12px 8px", fontWeight: "800" }}>Feedback</th>
-                          <th style={{ padding: "12px 8px", fontWeight: "800", textAlign: "right" }}>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedAssSubs.length > 0 ? (
-                          selectedAssSubs.map((sub: any) => {
-                            const student = students.find(s => s.id === sub.student_id) || {};
-                            const isGraded = sub.marks_obtained !== null && sub.marks_obtained !== undefined;
+                    {/* Filter and Sort Toolbar */}
+                    <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap", alignItems: "center", background: "#f8fafc", padding: "12px", borderRadius: "16px", border: "1px solid rgba(0,0,0,0.03)" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px", minWidth: "140px" }}>
+                        <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--db-text-muted)" }}>STATUS FILTER</span>
+                        <select value={subFilter} onChange={(e: any) => setSubFilter(e.target.value)} style={{ padding: "8px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "12px" }}>
+                          <option value="all">All Submissions</option>
+                          <option value="pending">Pending Review</option>
+                          <option value="reviewed">Reviewed</option>
+                        </select>
+                      </div>
 
-                            return (
-                              <tr key={sub.id} style={{ borderBottom: "1.5px solid #f8fafc" }}>
-                                <td style={{ padding: "12px 8px" }}>
-                                  <div style={{ fontWeight: "750", color: "var(--db-text-primary)" }}>{student.name || "Unknown student"}</div>
-                                  <div style={{ fontSize: "10px", color: "var(--db-text-muted)" }}>#{student.enrollment_number || student.enrollmentNumber}</div>
-                                </td>
-                                <td style={{ padding: "12px 8px" }}>
-                                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                                    {sub.repo_url && (
-                                      <a href={sub.repo_url} target="_blank" rel="noopener noreferrer" style={{ padding: "4px 8px", background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "6px", display: "flex", alignItems: "center", gap: "4px", textDecoration: "none", color: "#000", fontWeight: "700", fontSize: "10px" }}>
-                                        📁 Repo
-                                      </a>
-                                    )}
-                                    {sub.live_url && (
-                                      <a href={sub.live_url} target="_blank" rel="noopener noreferrer" style={{ padding: "4px 8px", background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "6px", display: "flex", alignItems: "center", gap: "4px", textDecoration: "none", color: "#000", fontWeight: "700", fontSize: "10px" }}>
-                                        🔗 Live
-                                      </a>
-                                    )}
-                                  </div>
-                                </td>
-                                <td style={{ padding: "12px 8px", color: "var(--db-text-muted)" }}>
-                                  {new Date(sub.submitted_at).toLocaleString()}
-                                </td>
-                                <td style={{ padding: "12px 8px" }}>
-                                  {isGraded ? (
-                                    <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--db-accent-green)", backgroundColor: "rgba(16,185,129,0.1)", padding: "2px 8px", borderRadius: "12px" }}>
-                                      Reviewed ({sub.marks_obtained}/{selectedAss.max_marks || 10})
-                                    </span>
-                                  ) : (
-                                    <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--db-accent-orange)", backgroundColor: "rgba(249,115,22,0.1)", padding: "2px 8px", borderRadius: "12px" }}>
-                                      Pending Review
-                                    </span>
-                                  )}
-                                </td>
-                                <td style={{ padding: "12px 8px", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--db-text-secondary)" }}>
-                                  {sub.mentor_feedback ? (
-                                    <span title={sub.mentor_feedback}>{sub.mentor_feedback}</span>
-                                  ) : (
-                                    <span style={{ fontStyle: "italic", color: "var(--db-text-muted)" }}>No feedback yet</span>
-                                  )}
-                                </td>
-                                <td style={{ padding: "12px 8px", textAlign: "right" }}>
-                                  <button
-                                    onClick={() => {
-                                      setSelectedSubId(sub.id);
-                                      setGradingSubmission({ ...sub, studentName: student.name, studentEnroll: student.enrollment_number || student.enrollmentNumber, studentEmail: student.email });
-                                      setGradeMarks(sub.marks_obtained !== null && sub.marks_obtained !== undefined ? String(sub.marks_obtained) : "");
-                                      setGradeFeedback(sub.mentor_feedback || "");
-                                      setManualBonusXp("0");
-                                    }}
-                                    className="explore-btn"
-                                    style={{ padding: "6px 12px", height: "30px", fontSize: "10px", fontWeight: "800", borderRadius: "8px" }}
-                                  >
-                                    ✏️ {isGraded ? "Edit Grade" : "Grade"}
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        ) : (
-                          <tr>
-                            <td colSpan={6} style={{ padding: "24px", textAlign: "center", color: "var(--db-text-muted)" }}>
-                              No submissions received for this assignment yet.
-                            </td>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px", minWidth: "140px" }}>
+                        <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--db-text-muted)" }}>SORT BY TIME</span>
+                        <select value={subSort} onChange={(e: any) => setSubSort(e.target.value)} style={{ padding: "8px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "12px" }}>
+                          <option value="oldest">Oldest First</option>
+                          <option value="newest">Newest First</option>
+                        </select>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1, minWidth: "200px" }}>
+                        <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--db-text-muted)" }}>SEARCH STUDENT</span>
+                        <input
+                          type="text"
+                          placeholder="Search by name or enrollment number..."
+                          value={subSearch}
+                          onChange={(e) => setSubSearch(e.target.value)}
+                          style={{ padding: "8px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Bulk Action Controls */}
+                    {selectedSubIds.length > 0 && (
+                      <div style={{ background: "rgba(255,212,70,0.12)", border: "1px solid rgba(255,212,70,0.4)", borderRadius: "16px", padding: "16px", marginBottom: "16px", display: "flex", gap: "16px", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+                        <div style={{ fontSize: "12px", fontWeight: "800", color: "var(--db-text-primary)" }}>
+                          📦 Bulk Action: {selectedSubIds.length} submissions selected
+                        </div>
+                        <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                          <input
+                            type="number"
+                            placeholder="Marks"
+                            min={0}
+                            max={selectedAss.max_marks || 10}
+                            value={bulkMarks}
+                            onChange={(e) => setBulkMarks(e.target.value)}
+                            style={{ padding: "8px", width: "80px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "12px", fontWeight: "700" }}
+                          />
+                          <input
+                            type="text"
+                            placeholder="Bulk Feedback"
+                            value={bulkFeedback}
+                            onChange={(e) => setBulkFeedback(e.target.value)}
+                            style={{ padding: "8px", width: "200px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                          />
+                          <button
+                            onClick={handleSaveBulk}
+                            disabled={isSavingBulk}
+                            className="explore-btn"
+                            style={{ padding: "8px 16px", fontSize: "11px", fontWeight: "800", height: "auto" }}
+                          >
+                            {isSavingBulk ? "Saving..." : "Apply & Save"}
+                          </button>
+                          <button
+                            onClick={() => setSelectedSubIds([])}
+                            style={{ padding: "8px", background: "none", border: "none", color: "#ef4444", fontSize: "11px", fontWeight: "850", cursor: "pointer" }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Table View */}
+                    <div className="table-responsive" style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
+                        <thead>
+                          <tr style={{ borderBottom: "2px solid #f1f5f9", color: "var(--db-text-muted)" }}>
+                            <th style={{ padding: "12px 8px", width: "40px" }}>
+                              <input
+                                type="checkbox"
+                                checked={filteredSubs.length > 0 && selectedSubIds.length === filteredSubs.length}
+                                onChange={toggleSelectAll}
+                                style={{ transform: "scale(1.15)", cursor: "pointer" }}
+                              />
+                            </th>
+                            <th style={{ padding: "12px 8px", fontWeight: "800" }}>Student Details</th>
+                            <th style={{ padding: "12px 8px", fontWeight: "800" }}>Artifact Links</th>
+                            <th style={{ padding: "12px 8px", fontWeight: "800" }}>Submitted At</th>
+                            <th style={{ padding: "12px 8px", fontWeight: "800" }}>Status</th>
+                            <th style={{ padding: "12px 8px", fontWeight: "800", width: "80px" }}>Marks</th>
+                            <th style={{ padding: "12px 8px", fontWeight: "800" }}>Mentor Feedback</th>
+                            <th style={{ padding: "12px 8px", fontWeight: "800", textAlign: "right" }}>Actions</th>
                           </tr>
-                        )}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {filteredSubs.length > 0 ? (
+                            filteredSubs.map((sub: any) => {
+                              const student = students.find(s => s.id === sub.student_id) || {};
+                              const isGraded = sub.marks_obtained !== null && sub.marks_obtained !== undefined;
+                              const isSelected = selectedSubIds.includes(sub.id);
+
+                              return (
+                                <tr key={sub.id} style={{ borderBottom: "1.5px solid #f8fafc", background: isSelected ? "rgba(255,212,70,0.04)" : "none" }}>
+                                  <td style={{ padding: "12px 8px" }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={() => toggleSelectSub(sub.id)}
+                                      style={{ transform: "scale(1.1)", cursor: "pointer" }}
+                                    />
+                                  </td>
+                                  <td style={{ padding: "12px 8px" }}>
+                                    <div style={{ fontWeight: "750", color: "var(--db-text-primary)" }}>{student.name || "Unknown student"}</div>
+                                    <div style={{ fontSize: "10px", color: "var(--db-text-muted)" }}>#{student.enrollment_number || student.enrollmentNumber}</div>
+                                  </td>
+                                  <td style={{ padding: "12px 8px" }}>
+                                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                                      {sub.repo_url && (
+                                        <a href={sub.repo_url} target="_blank" rel="noopener noreferrer" style={{ padding: "4px 8px", background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "6px", display: "flex", alignItems: "center", gap: "4px", textDecoration: "none", color: "#000", fontWeight: "700", fontSize: "10px" }}>
+                                          📁 Repo
+                                        </a>
+                                      )}
+                                      {sub.live_url && (
+                                        <a href={sub.live_url} target="_blank" rel="noopener noreferrer" style={{ padding: "4px 8px", background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "6px", display: "flex", alignItems: "center", gap: "4px", textDecoration: "none", color: "#000", fontWeight: "700", fontSize: "10px" }}>
+                                          🔗 Live
+                                        </a>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td style={{ padding: "12px 8px", color: "var(--db-text-muted)" }}>
+                                    {new Date(sub.submitted_at).toLocaleString()}
+                                  </td>
+                                  <td style={{ padding: "12px 8px" }}>
+                                    {isGraded ? (
+                                      <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--db-accent-green)", backgroundColor: "rgba(16,185,129,0.1)", padding: "2px 8px", borderRadius: "12px" }}>
+                                        Reviewed ({sub.marks_obtained}/{selectedAss.max_marks || 10})
+                                      </span>
+                                    ) : (
+                                      <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--db-accent-orange)", backgroundColor: "rgba(249,115,22,0.1)", padding: "2px 8px", borderRadius: "12px" }}>
+                                        Pending Review
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td style={{ padding: "12px 8px" }}>
+                                    <input
+                                      type="number"
+                                      className="inline-marks-input"
+                                      data-sub-id={sub.id}
+                                      style={{ width: "60px", padding: "6px 8px", borderRadius: "8px", border: "1.5px solid #cbd5e1", outline: "none", fontWeight: "700", fontSize: "12px", textAlign: "center" }}
+                                      placeholder="Marks"
+                                      min={0}
+                                      max={selectedAss.max_marks || 10}
+                                      value={inlineGrades[sub.id]?.marks ?? (sub.marks_obtained !== null && sub.marks_obtained !== undefined ? String(sub.marks_obtained) : "")}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setInlineGrades(prev => ({
+                                          ...prev,
+                                          [sub.id]: {
+                                            marks: val,
+                                            feedback: prev[sub.id]?.feedback ?? (sub.mentor_feedback || "")
+                                          }
+                                        }));
+                                      }}
+                                    />
+                                  </td>
+                                  <td style={{ padding: "12px 8px" }}>
+                                    <input
+                                      type="text"
+                                      style={{ width: "100%", minWidth: "150px", padding: "6px 8px", borderRadius: "8px", border: "1.5px solid #cbd5e1", outline: "none", fontSize: "12px" }}
+                                      placeholder="Leave a short comment..."
+                                      value={inlineGrades[sub.id]?.feedback ?? (sub.mentor_feedback || "")}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setInlineGrades(prev => ({
+                                          ...prev,
+                                          [sub.id]: {
+                                            marks: prev[sub.id]?.marks ?? (sub.marks_obtained !== null && sub.marks_obtained !== undefined ? String(sub.marks_obtained) : ""),
+                                            feedback: val
+                                          }
+                                        }));
+                                      }}
+                                    />
+                                  </td>
+                                  <td style={{ padding: "12px 8px", textAlign: "right" }}>
+                                    <button
+                                      onClick={() => handleSaveInline(sub.id)}
+                                      disabled={savingInlineIds[sub.id]}
+                                      className="explore-btn"
+                                      style={{ padding: "6px 12px", height: "30px", fontSize: "10px", fontWeight: "800", borderRadius: "8px", background: "var(--db-accent-green)", color: "#fff", border: "none" }}
+                                    >
+                                      {savingInlineIds[sub.id] ? "Saving..." : "Save"}
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          ) : (
+                            <tr>
+                              <td colSpan={8} style={{ padding: "24px", textAlign: "center", color: "var(--db-text-muted)" }}>
+                                No submissions found matching filters.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Grading Modal Overlay */}
               {selectedSubId && gradingSubmission && (
@@ -3074,7 +3594,16 @@ export default function AdminDashboardPage() {
 
               {/* Roster Controls */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
-                <h3 className="db-section-title" style={{ margin: 0 }}>Student Roster Directory</h3>
+                <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                  <h3 className="db-section-title" style={{ margin: 0 }}>Student Roster Directory</h3>
+                  <button
+                    onClick={() => setImportOpen(!importOpen)}
+                    className="explore-btn"
+                    style={{ height: "36px", fontSize: "11px", fontWeight: "800", display: "inline-flex", alignItems: "center", gap: "6px", borderRadius: "10px", backgroundColor: importOpen ? "#475569" : "var(--db-accent-orange)", border: "none", color: "#fff", padding: "0 14px", cursor: "pointer" }}
+                  >
+                    📥 {importOpen ? "Close Import Tool" : "Bulk Import Students"}
+                  </button>
+                </div>
                 <input
                   type="text"
                   placeholder="Search by name or enrollment…"
@@ -3084,6 +3613,180 @@ export default function AdminDashboardPage() {
                   style={{ maxWidth: "260px", margin: 0, padding: "8px 12px", borderRadius: "8px", border: "1.5px solid #eaeaea", outline: "none", fontSize: "12px" }}
                 />
               </div>
+
+              {/* Excel Bulk Import Tool Block */}
+              {importOpen && (
+                <div className="modern-card animate-in slide-in-from-top duration-300" style={{ background: "#fff", border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "20px", padding: "24px", marginBottom: "24px", display: "block" }}>
+                  <h4 style={{ margin: "0 0 16px 0", fontSize: "14px", fontWeight: "900", textTransform: "uppercase", color: "var(--db-text-primary)" }}>Bulk Import Excel Students</h4>
+                  
+                  {importStep === "upload" && (
+                    <div style={{ border: "2px dashed #cbd5e1", borderRadius: "16px", padding: "40px 20px", textAlign: "center", background: "#f8fafc" }}>
+                      <div style={{ fontSize: "36px", marginBottom: "12px" }}>📊</div>
+                      <div style={{ fontSize: "13px", fontWeight: "800", color: "#1e293b", marginBottom: "4px" }}>Upload external registration Excel sheet (.xlsx)</div>
+                      <p style={{ fontSize: "11px", color: "#64748b", margin: "0 0 16px" }}>The headers will be parsed to map columns to our student registration fields.</p>
+                      <label className="explore-btn" style={{ padding: "8px 20px", height: "auto", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px", borderRadius: "10px", margin: "0 auto" }}>
+                        <span>📂 Select Excel File</span>
+                        <input
+                          type="file"
+                          accept=".xlsx"
+                          style={{ display: "none" }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleParseExcel(file);
+                          }}
+                        />
+                      </label>
+                      {isParsingExcel && <div style={{ fontSize: "11px", color: "var(--db-accent-orange)", marginTop: "12px", fontWeight: "700" }}>Parsing file and extracting headers...</div>}
+                    </div>
+                  )}
+
+                  {importStep === "mapping" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                      <div style={{ background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.15)", borderRadius: "12px", padding: "12px 16px", fontSize: "12px" }}>
+                        <strong>✅ Excel file parsed!</strong> Found <strong>{excelRows.length}</strong> rows and <strong>{excelHeaders.length}</strong> columns. Please map the columns below.
+                      </div>
+                      
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px" }}>
+                        {Object.keys(mappedFields).map((field) => {
+                          const label = field.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+                          return (
+                            <div key={field} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                              <span style={{ fontSize: "11px", fontWeight: "800", color: "#475569" }}>{label}*</span>
+                              <select
+                                value={mappedFields[field]}
+                                onChange={(e) => setMappedFields(prev => ({ ...prev, [field]: e.target.value }))}
+                                style={{ padding: "8px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                              >
+                                <option value="">-- Select Column --</option>
+                                {excelHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                              </select>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+                        <button
+                          onClick={() => setImportStep("preview")}
+                          disabled={!mappedFields.name || !mappedFields.email || !mappedFields.enrollment_number || !mappedFields.phone_number}
+                          className="explore-btn"
+                          style={{ padding: "10px 20px", height: "auto", borderRadius: "10px", fontWeight: "800" }}
+                        >
+                          Preview Parsed Data ➔
+                        </button>
+                        <button
+                          onClick={() => setImportStep("upload")}
+                          style={{ padding: "10px 16px", background: "#f1f5f9", border: "1.5px solid #cbd5e1", color: "#64748b", borderRadius: "10px", fontWeight: "800", cursor: "pointer" }}
+                        >
+                          Back
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {importStep === "preview" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                      <div style={{ fontSize: "12px", fontWeight: "700" }}>
+                        Previewing first 10 rows of {excelRows.length} total rows:
+                      </div>
+                      <div style={{ overflowX: "auto" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", textAlign: "left" }}>
+                          <thead>
+                            <tr style={{ borderBottom: "2px solid #e2e8f0", background: "#f8fafc" }}>
+                              <th style={{ padding: "8px" }}>Name</th>
+                              <th style={{ padding: "8px" }}>Email</th>
+                              <th style={{ padding: "8px" }}>Enrollment</th>
+                              <th style={{ padding: "8px" }}>Phone</th>
+                              <th style={{ padding: "8px" }}>Branch</th>
+                              <th style={{ padding: "8px" }}>Year</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {excelRows.slice(0, 10).map((row, idx) => (
+                              <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                                <td style={{ padding: "8px", fontWeight: "700" }}>{String(row[mappedFields.name] || "")}</td>
+                                <td style={{ padding: "8px" }}>{String(row[mappedFields.email] || "")}</td>
+                                <td style={{ padding: "8px" }}>{String(row[mappedFields.enrollment_number] || "")}</td>
+                                <td style={{ padding: "8px" }}>{String(row[mappedFields.phone_number] || "")}</td>
+                                <td style={{ padding: "8px" }}>{String(row[mappedFields.branch] || "CS")}</td>
+                                <td style={{ padding: "8px" }}>{String(row[mappedFields.year_of_study] || "1st Year")}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+                        <button
+                          onClick={handleExecuteImport}
+                          disabled={isImportingExcel}
+                          className="explore-btn"
+                          style={{ padding: "10px 20px", height: "auto", borderRadius: "10px", fontWeight: "800", backgroundColor: "var(--db-accent-green)" }}
+                        >
+                          {isImportingExcel ? "Importing..." : "Commit Import to Database ➔"}
+                        </button>
+                        <button
+                          onClick={() => setImportStep("mapping")}
+                          style={{ padding: "10px 16px", background: "#f1f5f9", border: "1.5px solid #cbd5e1", color: "#64748b", borderRadius: "10px", fontWeight: "800", cursor: "pointer" }}
+                        >
+                          Back
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {importStep === "summary" && importResult && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                      <div style={{ background: "rgba(16,185,129,0.08)", border: "1.5px solid rgba(16,185,129,0.3)", borderRadius: "16px", padding: "20px", color: "#065f46" }}>
+                        <h4 style={{ margin: "0 0 12px 0", fontSize: "15px", fontWeight: "900", textTransform: "uppercase" }}>🎉 Import Completed Successfully</h4>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", textAlign: "center" }}>
+                          <div style={{ background: "#fff", padding: "10px", borderRadius: "12px", border: "1px solid rgba(0,0,0,0.03)" }}>
+                            <div style={{ fontSize: "18px", fontWeight: "900" }}>{importResult.summary.imported}</div>
+                            <div style={{ fontSize: "9px", fontWeight: "800", color: "#64748b", textTransform: "uppercase" }}>Imported</div>
+                          </div>
+                          <div style={{ background: "#fff", padding: "10px", borderRadius: "12px", border: "1px solid rgba(0,0,0,0.03)" }}>
+                            <div style={{ fontSize: "18px", fontWeight: "900" }}>{importResult.summary.skipped}</div>
+                            <div style={{ fontSize: "9px", fontWeight: "800", color: "#64748b", textTransform: "uppercase" }}>Skipped</div>
+                          </div>
+                          <div style={{ background: "#fff", padding: "10px", borderRadius: "12px", border: "1px solid rgba(0,0,0,0.03)" }}>
+                            <div style={{ fontSize: "18px", fontWeight: "900" }}>{importResult.summary.failed}</div>
+                            <div style={{ fontSize: "9px", fontWeight: "800", color: "#64748b", textTransform: "uppercase" }}>Failed</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {importResult.failures && importResult.failures.length > 0 && (
+                        <div style={{ border: "1.5px solid rgba(239,68,68,0.15)", borderRadius: "16px", padding: "16px", background: "rgba(239,68,68,0.02)" }}>
+                          <h5 style={{ margin: "0 0 10px 0", fontSize: "11px", fontWeight: "900", color: "#b91c1c", textTransform: "uppercase" }}>Failed Rows Details</h5>
+                          <div style={{ maxHeight: "150px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px" }}>
+                            {importResult.failures.map((f: any, idx: number) => (
+                              <div key={idx} style={{ fontSize: "11px", display: "flex", gap: "6px" }}>
+                                <span style={{ color: "#ef4444", fontWeight: "800" }}>[Row {f.row}]</span>
+                                <strong>{f.name}:</strong>
+                                <span style={{ color: "#64748b" }}>{f.reason}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={() => {
+                          setImportStep("upload");
+                          setExcelHeaders([]);
+                          setExcelRows([]);
+                          setImportResult(null);
+                          setImportOpen(false);
+                        }}
+                        className="explore-btn"
+                        style={{ width: "100%", padding: "12px", borderRadius: "12px", fontWeight: "800" }}
+                      >
+                        Done & Close Panel
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Roster List */}
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -3107,9 +3810,7 @@ export default function AdminDashboardPage() {
                       <div className="modern-card animate-in fade-in duration-200" key={s.id || enroll} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 24px", backgroundColor: "#fff", border: "1.5px solid rgba(0,0,0,0.05)", borderRadius: "20px", gap: "16px", flexWrap: "wrap" }}>
                         {/* Left: Avatar & Info */}
                         <div style={{ display: "flex", alignItems: "center", gap: "16px", flex: 1, minWidth: "240px" }}>
-                          <div style={{ width: "42px", height: "42px", borderRadius: "50%", backgroundColor: "rgba(30,58,138,0.05)", color: "var(--db-text-primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", fontWeight: "900", border: "1px solid rgba(30,58,138,0.1)" }}>
-                            {initials}
-                          </div>
+                          <StudentAvatar name={s.name} email={s.email} avatarUrl={s.avatar_url} size={42} />
                           <div>
                             <h4 style={{ margin: 0, fontSize: "14px", fontWeight: "800", color: "#0f172a" }}>{s.name}</h4>
                             <div style={{ fontSize: "11px", color: "var(--db-text-muted)", marginTop: "2px", display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
@@ -3153,6 +3854,462 @@ export default function AdminDashboardPage() {
                     );
                   }) : <div className="db-project-row">No students match your query.</div>}
               </div>
+            </div>
+          );
+        })()}
+
+        {/* ======= TAB: EMAIL PORTAL ======= */}
+        {currentTab === "email" && (() => {
+          const totalRecipients = emailTarget === "all" 
+            ? students.length 
+            : Object.keys(selectedEmailRecipients).filter(id => selectedEmailRecipients[id]).length;
+
+          const activeCustomCount = Object.keys(selectedEmailRecipients).filter(id => selectedEmailRecipients[id]).length;
+
+          const formatEmailBody = (text: string): string => {
+            if (!text) return "";
+            
+            const lines = text.split("\n");
+            let html = "";
+            let inChecklist = false;
+
+            for (let i = 0; i < lines.length; i++) {
+              const line = lines[i].trim();
+              
+              if (!line) {
+                if (inChecklist) {
+                  html += `</div>`;
+                  inChecklist = false;
+                }
+                html += `<div style="height: 12px;"></div>`;
+                continue;
+              }
+
+              // 1. Checklist Items
+              if (line.startsWith("✅")) {
+                if (!inChecklist) {
+                  html += `<div style="margin: 16px 0; padding: 0; display: block;">`;
+                  inChecklist = true;
+                }
+                const itemText = line.replace(/^✅/, "").trim();
+                html += `
+                  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 8px;">
+                    <tbody>
+                      <tr>
+                        <td style="vertical-align: top; width: 24px; font-size: 15px; color: #10b981; padding-top: 1px;">✅</td>
+                        <td style="vertical-align: top; font-size: 14px; color: #334155; line-height: 1.5; font-weight: 600;">${itemText}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                `;
+                continue;
+              }
+
+              if (inChecklist) {
+                html += `</div>`;
+                inChecklist = false;
+              }
+
+              // 2. Warning Box / Important Laptop Reminder
+              if (line.startsWith("⚠️")) {
+                const content = line.replace(/^⚠️/, "").trim();
+                html += `
+                  <div style="margin: 20px 0; padding: 16px; background-color: #fffbeb; border-left: 4px solid #f59e0b; border-radius: 12px; border-top: 1px solid #fef3c7; border-right: 1px solid #fef3c7; border-bottom: 1px solid #fef3c7;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                      <tbody>
+                        <tr>
+                          <td style="vertical-align: top; width: 28px; font-size: 16px; padding-top: 1px;">⚠️</td>
+                          <td style="vertical-align: top; font-size: 14px; line-height: 1.5; color: #78350f; font-weight: 700;">${content}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                `;
+                continue;
+              }
+
+              // 3. Logistical Info Blocks (Date, Time, Venue)
+              if (line.startsWith("📅") || line.startsWith("🕧") || line.startsWith("📍") || line.startsWith("👨‍🏫") || line.startsWith("👩‍🏫")) {
+                const emoji = line.substring(0, 2);
+                const content = line.substring(2).trim();
+                const parts = content.split(":");
+                const label = parts[0] ? parts[0].trim() : "";
+                const val = parts.slice(1).join(":").trim();
+
+                html += `
+                  <div style="margin-bottom: 8px; background-color: #f8fafc; padding: 12px 16px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                      <tbody>
+                        <tr>
+                          <td style="vertical-align: middle; width: 26px; font-size: 16px;">${emoji}</td>
+                          <td style="vertical-align: middle; font-size: 13px; color: #475569; font-weight: 700; width: 80px;">${label}:</td>
+                          <td style="vertical-align: middle; font-size: 13px; color: #0f172a; font-weight: 800;">${val}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                `;
+                continue;
+              }
+
+              // 4. Organizer Credits / Faculty Coordinators
+              if (line.startsWith("Resource Person:") || line.startsWith("Faculty Coordinator:") || line.includes("Ambassador")) {
+                html += `<p style="margin: 0 0 8px 0; font-size: 13px; line-height: 1.5; color: #64748b; font-weight: 500;">${line}</p>`;
+                continue;
+              }
+
+              // 5. Links
+              if (line.includes("http://") || line.includes("https://")) {
+                const urlRegex = /(https?:\/\/[^\s]+)/g;
+                const linkedLine = line.replace(urlRegex, (url) => {
+                  return `<a href="${url}" target="_blank" style="color: #0284c7; text-decoration: underline; font-weight: 700;">${url}</a>`;
+                });
+                html += `<p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #334155; font-weight: 500;">${linkedLine}</p>`;
+                continue;
+              }
+
+              // Default Paragraph
+              html += `<p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #334155; font-weight: 500;">${line}</p>`;
+            }
+
+            if (inChecklist) {
+              html += `</div>`;
+            }
+
+            return html;
+          };
+
+          return (
+            <div className="db-projects-section animate-in fade-in duration-300">
+              {/* Header section matching style in screenshot */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", flexWrap: "wrap", gap: "16px" }}>
+                <div>
+                  <span style={{ fontSize: "10px", fontWeight: "900", color: "var(--db-accent-green)", textTransform: "uppercase", letterSpacing: "1px" }}>✦ Community Communication</span>
+                  <h3 className="db-section-title" style={{ margin: "4px 0 0 0", fontSize: "20px" }}>Email Broadcast Portal</h3>
+                  <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "var(--db-text-muted)" }}>Dispatch branded announcements to your interns or every platform user.</p>
+                </div>
+                <button
+                  onClick={handleSendEmail}
+                  disabled={isSendingEmail || totalRecipients === 0}
+                  className="explore-btn"
+                  style={{
+                    backgroundColor: "var(--db-accent-green)",
+                    color: "#fff",
+                    border: "none",
+                    height: "42px",
+                    padding: "0 24px",
+                    borderRadius: "12px",
+                    fontWeight: "850",
+                    fontSize: "13px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px"
+                  }}
+                >
+                  {isSendingEmail ? (
+                    <>⏳ Sending Broadcast...</>
+                  ) : (
+                    <>🚀 Send Email ({totalRecipients})</>
+                  )}
+                </button>
+              </div>
+
+              {/* Stats Metrics Cards */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+                <div className="stat-card-modern" style={{ background: "#fff", border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "20px", padding: "20px" }}>
+                  <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--db-text-muted)", textTransform: "uppercase" }}>My Interns</span>
+                  <div style={{ fontSize: "28px", fontWeight: "900", color: "var(--db-text-primary)", marginTop: "4px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span>{students.length}</span>
+                    <span style={{ fontSize: "18px", opacity: 0.6 }}>👥</span>
+                  </div>
+                </div>
+                <div className="stat-card-modern" style={{ background: "#fff", border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "20px", padding: "20px" }}>
+                  <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Platform Users</span>
+                  <div style={{ fontSize: "28px", fontWeight: "900", color: "var(--db-text-primary)", marginTop: "4px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span>{students.length}</span>
+                    <span style={{ fontSize: "18px", opacity: 0.6 }}>🌐</span>
+                  </div>
+                </div>
+                <div className="stat-card-modern" style={{ background: "#fff", border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "20px", padding: "20px" }}>
+                  <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Custom Selected</span>
+                  <div style={{ fontSize: "28px", fontWeight: "900", color: "var(--db-accent-orange)", marginTop: "4px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span>{activeCustomCount}</span>
+                    <span style={{ fontSize: "18px", opacity: 0.6 }}>🎯</span>
+                  </div>
+                </div>
+                <div className="stat-card-modern" style={{ background: "#fff", border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "20px", padding: "20px" }}>
+                  <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--db-text-muted)", textTransform: "uppercase" }}>Ready to Send</span>
+                  <div style={{ fontSize: "28px", fontWeight: "900", color: "var(--db-accent-yellow)", marginTop: "4px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span>{totalRecipients}</span>
+                    <span style={{ fontSize: "18px", opacity: 0.6 }}>✉️</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Compose vs Recipients sub-tab toggles */}
+              <div style={{ display: "flex", gap: "8px", borderBottom: "1.5px solid #eaeaea", paddingBottom: "10px", marginBottom: "20px" }}>
+                <button
+                  onClick={() => setEmailSubTab("compose")}
+                  className={`tab-btn-pill ${emailSubTab === "compose" ? "active" : ""}`}
+                  style={{
+                    padding: "8px 20px",
+                    borderRadius: "20px",
+                    fontWeight: "800",
+                    fontSize: "12px",
+                    border: "none",
+                    cursor: "pointer",
+                    backgroundColor: emailSubTab === "compose" ? "var(--db-text-primary)" : "rgba(0,0,0,0.05)",
+                    color: emailSubTab === "compose" ? "#fff" : "var(--db-text-primary)"
+                  }}
+                >
+                  COMPOSE
+                </button>
+                <button
+                  onClick={() => setEmailSubTab("recipients")}
+                  className={`tab-btn-pill ${emailSubTab === "recipients" ? "active" : ""}`}
+                  style={{
+                    padding: "8px 20px",
+                    borderRadius: "20px",
+                    fontWeight: "800",
+                    fontSize: "12px",
+                    border: "none",
+                    cursor: "pointer",
+                    backgroundColor: emailSubTab === "recipients" ? "var(--db-text-primary)" : "rgba(0,0,0,0.05)",
+                    color: emailSubTab === "recipients" ? "#fff" : "var(--db-text-primary)"
+                  }}
+                >
+                  RECIPIENTS
+                </button>
+              </div>
+
+              {emailSubTab === "compose" ? (
+                /* COMPOSE PANEL: Form on left, live branded preview on right */
+                <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "24px", alignItems: "start" }}>
+                  {/* Left Column: Form Settings */}
+                  <div className="modern-card" style={{ background: "#fff", border: "1.5px solid rgba(0,0,0,0.05)", borderRadius: "24px", padding: "24px", display: "flex", flexDirection: "column", gap: "20px" }}>
+                    {/* Who are you emailing cards */}
+                    <div>
+                      <span style={{ fontSize: "11px", fontWeight: "850", color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: "10px" }}>Who are you emailing?</span>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px" }}>
+                        <div
+                          onClick={() => setEmailTarget("all")}
+                          style={{
+                            border: `2px solid ${emailTarget === "all" ? "var(--db-accent-green)" : "#e2e8f0"}`,
+                            backgroundColor: emailTarget === "all" ? "rgba(16,185,129,0.02)" : "#fff",
+                            borderRadius: "16px",
+                            padding: "16px",
+                            cursor: "pointer",
+                            transition: "all 0.2s"
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                            <span style={{ fontSize: "18px" }}>👥</span>
+                            {emailTarget === "all" && <span style={{ color: "var(--db-accent-green)", fontWeight: "900", fontSize: "12px" }}>✓ Selected</span>}
+                          </div>
+                          <strong style={{ fontSize: "12px", display: "block", color: "#0f172a" }}>All Platform</strong>
+                          <span style={{ fontSize: "10px", color: "#64748b" }}>Entire roster ({students.length})</span>
+                        </div>
+
+                        <div
+                          onClick={() => setEmailTarget("custom")}
+                          style={{
+                            border: `2px solid ${emailTarget === "custom" ? "var(--db-accent-green)" : "#e2e8f0"}`,
+                            backgroundColor: emailTarget === "custom" ? "rgba(16,185,129,0.02)" : "#fff",
+                            borderRadius: "16px",
+                            padding: "16px",
+                            cursor: "pointer",
+                            transition: "all 0.2s"
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                            <span style={{ fontSize: "18px" }}>🎯</span>
+                            {emailTarget === "custom" && <span style={{ color: "var(--db-accent-green)", fontWeight: "900", fontSize: "12px" }}>✓ Selected</span>}
+                          </div>
+                          <strong style={{ fontSize: "12px", display: "block", color: "#0f172a" }}>Custom Selection</strong>
+                          <span style={{ fontSize: "10px", color: "#64748b" }}>Target specific list ({activeCustomCount})</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Email template selector */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <span style={{ fontSize: "11px", fontWeight: "850", color: "#64748b", textTransform: "uppercase" }}>Email Template</span>
+                      <select
+                        value={emailTemplate}
+                        onChange={(e) => setEmailTemplate(e.target.value)}
+                        style={{ padding: "10px", borderRadius: "10px", border: "1.5px solid #cbd5e1", outline: "none", fontSize: "12px" }}
+                      >
+                        <option value="custom">Custom Message Template</option>
+                      </select>
+                    </div>
+
+                    {/* Optional Badge Pill */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <span style={{ fontSize: "11px", fontWeight: "855", color: "#64748b", textTransform: "uppercase" }}>Badge Pill (Optional)</span>
+                      <input
+                        type="text"
+                        placeholder="e.g. CERTIFICATE UPDATE, SESSION STARTS..."
+                        value={emailBadge}
+                        onChange={(e) => setEmailBadge(e.target.value)}
+                        className="form-input-text"
+                        style={{ margin: 0, padding: "10px 12px", borderRadius: "10px", fontSize: "12px" }}
+                      />
+                    </div>
+
+                    {/* Subject */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <span style={{ fontSize: "11px", fontWeight: "855", color: "#64748b", textTransform: "uppercase" }}>Subject / Heading *</span>
+                      <input
+                        type="text"
+                        placeholder="Enter email subject line..."
+                        value={emailSubject}
+                        onChange={(e) => setEmailSubject(e.target.value)}
+                        className="form-input-text"
+                        style={{ margin: 0, padding: "10px 12px", borderRadius: "10px", fontSize: "12px" }}
+                      />
+                    </div>
+
+                    {/* Message Body */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <span style={{ fontSize: "11px", fontWeight: "855", color: "#64748b", textTransform: "uppercase" }}>Message Body *</span>
+                      <textarea
+                        rows={8}
+                        placeholder="Write your email broadcast message here..."
+                        value={emailBody}
+                        onChange={(e) => setEmailBody(e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "12px",
+                          borderRadius: "12px",
+                          border: "1.5px solid #cbd5e1",
+                          outline: "none",
+                          fontSize: "12px",
+                          lineHeight: "1.6",
+                          fontFamily: "inherit"
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Right Column: Branded Live Preview Card */}
+                  <div style={{ position: "sticky", top: "20px" }}>
+                    <span style={{ fontSize: "11px", fontWeight: "850", color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: "10px" }}>Live Branded Preview</span>
+                    
+                    <div style={{ border: "1.5px solid #e9e3d5", borderRadius: "20px", overflow: "hidden", background: "#faf6eb", padding: "24px", boxShadow: "0 10px 15px -3px rgba(139,92,26,0.05), 0 4px 6px -2px rgba(139,92,26,0.02)" }}>
+                      <div style={{ background: "#ffffff", borderRadius: "16px", border: "1px solid #e9e3d5", overflow: "hidden", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" }}>
+                        {/* Preview Header with Logos */}
+                        <div style={{ padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #faf6eb", backgroundColor: "#ffffff" }}>
+                          <img src="/images/arka-jain-logo-wide.png" alt="AJU Logo" style={{ height: "30px", objectFit: "contain" }} />
+                          <img src="/images/mlsa-badge.png" alt="MLSA Logo" style={{ height: "32px", objectFit: "contain" }} />
+                        </div>
+                        {/* Dark Subheader Bar with golden accent border */}
+                        <div style={{ padding: "16px 20px", background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)", textAlign: "center", borderBottom: "3px solid #d97706" }}>
+                          <div style={{ fontSize: "14px", fontWeight: "900", color: "#ffffff", letterSpacing: "0.5px", textTransform: "uppercase" }}>Git &amp; GitHub Masterclass</div>
+                          <div style={{ fontSize: "8px", color: "#f59e0b", fontWeight: "700", marginTop: "2px", textTransform: "uppercase", letterSpacing: "1px" }}>Microsoft Learn Student Ambassadors</div>
+                        </div>
+
+                        {/* Preview Content Area */}
+                        <div style={{ padding: "30px 24px 24px 24px", minHeight: "220px" }}>
+                          {emailBadge.trim() && (
+                            <span style={{ display: "inline-block", backgroundColor: "#fef3c7", color: "#d97706", fontSize: "9px", fontWeight: "800", padding: "3px 8px", borderRadius: "20px", textTransform: "uppercase", marginBottom: "12px", border: "1px solid #fde68a" }}>
+                              {emailBadge}
+                            </span>
+                          )}
+                          {/* Use standard div instead of h1 to bypass any global CSS absolute positioning/styles causing overlap */}
+                          <div style={{ margin: "0 0 16px 0", fontSize: "18px", fontWeight: "850", color: "#0f172a", lineHeight: "1.35", letterSpacing: "-0.4px", textTransform: "none" }}>
+                            {emailSubject.trim() ? emailSubject : "Your email subject will appear here..."}
+                          </div>
+                          <div 
+                            style={{ fontSize: "13px", color: "#334155", lineHeight: "1.6", textTransform: "none" }}
+                            dangerouslySetInnerHTML={{ 
+                              __html: emailBody.trim() 
+                                ? formatEmailBody(emailBody) 
+                                : `<p style="margin: 0; color: #64748b; font-style: italic;">Your message body text will render here dynamically...</p>` 
+                            }}
+                          />
+
+                          <div style={{ marginTop: "28px", borderTop: "1.5px solid #faf6eb", paddingTop: "16px" }}>
+                            <p style={{ margin: 0, fontSize: "11px", color: "#64748b", fontWeight: "750" }}>Warm regards,</p>
+                            <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "#0f172a", fontWeight: "850" }}>Git &amp; GitHub Masterclass Team</p>
+                          </div>
+                        </div>
+
+                        {/* Preview Footer */}
+                        <div style={{ padding: "16px 20px", backgroundColor: "#faf6eb", textAlign: "center", borderTop: "1.5px solid #e9e3d5" }}>
+                          <p style={{ margin: 0, fontSize: "9px", color: "#64748b", lineHeight: "1.4" }}>Organized by Microsoft Learn Student Ambassador Program at Arka Jain University.</p>
+                          <p style={{ margin: "2px 0 0 0", fontSize: "8px", color: "#94a3b8" }}>&copy; 2026 Git &amp; GitHub Masterclass. All Rights Reserved.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* RECIPIENTS PANEL: Selectable checklist */
+                <div className="modern-card" style={{ background: "#fff", border: "1.5px solid rgba(0,0,0,0.05)", borderRadius: "24px", padding: "24px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
+                    <div style={{ display: "flex", gap: "10px" }}>
+                      <button
+                        onClick={() => {
+                          const allSelected: Record<string, boolean> = {};
+                          students.forEach(s => { allSelected[s.id || s.enrollment_number] = true; });
+                          setSelectedEmailRecipients(allSelected);
+                        }}
+                        style={{ padding: "6px 12px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "11px", fontWeight: "800", cursor: "pointer" }}
+                      >
+                        Select All
+                      </button>
+                      <button
+                        onClick={() => setSelectedEmailRecipients({})}
+                        style={{ padding: "6px 12px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "11px", fontWeight: "800", cursor: "pointer" }}
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                    <span style={{ fontSize: "11px", fontWeight: "800", color: "#64748b" }}>
+                      Selected: <strong>{activeCustomCount}</strong> of <strong>{students.length}</strong>
+                    </span>
+                  </div>
+
+                  <div style={{ maxHeight: "400px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {students.map((s: any) => {
+                      const id = s.id || s.enrollment_number;
+                      const isChecked = !!selectedEmailRecipients[id];
+                      return (
+                        <label
+                          key={id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "12px",
+                            padding: "10px 14px",
+                            borderRadius: "12px",
+                            border: `1.5px solid ${isChecked ? "rgba(16,185,129,0.25)" : "rgba(0,0,0,0.04)"}`,
+                            backgroundColor: isChecked ? "rgba(16,185,129,0.02)" : "#fff",
+                            cursor: "pointer",
+                            transition: "all 0.15s"
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              setSelectedEmailRecipients(prev => ({
+                                ...prev,
+                                [id]: e.target.checked
+                              }));
+                            }}
+                            style={{ width: "16px", height: "16px", cursor: "pointer" }}
+                          />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <strong style={{ fontSize: "12px", display: "block", color: "#0f172a" }}>{s.name}</strong>
+                            <span style={{ fontSize: "10px", color: "#64748b" }}>#{s.enrollment_number || ""} · {s.email}</span>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })()}

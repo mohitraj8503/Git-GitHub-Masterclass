@@ -85,19 +85,9 @@ export async function POST(request: Request) {
         .single();
 
       if (!error && data) {
-        const xpResult = await awardXp(rawStudentId, "submit_assignment", assignment_id);
-
+        // XP is not auto-awarded on submission; it will be awarded when graded.
+        const xpResult = { success: true, message: "XP will be awarded after review/grading." };
         let isEarly = false;
-        const { data: assDetails } = await supabaseAdmin
-          .from("assignments")
-          .select("due_date")
-          .eq("id", assignment_id)
-          .maybeSingle();
-        
-        if (assDetails && new Date().getTime() < new Date(assDetails.due_date).getTime()) {
-          await awardXp(rawStudentId, "early_submission_bonus", `${assignment_id}_early`);
-          isEarly = true;
-        }
 
         const taskResult = await completeTaskForEnrollment(rawStudentId, "complete_assignment", {
           source: "assignment-submission",

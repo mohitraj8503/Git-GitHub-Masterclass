@@ -50,6 +50,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Title, type, and URL are required." }, { status: 400 });
     }
 
+    try {
+      new URL(url);
+    } catch (e) {
+      return NextResponse.json({ success: false, error: "Please enter a valid URL (starting with http:// or https://)." }, { status: 400 });
+    }
+
     const newResourceLocal = {
       title,
       type,

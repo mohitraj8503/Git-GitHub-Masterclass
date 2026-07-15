@@ -83,6 +83,13 @@ const handler = NextAuth({
         if (supabaseAdmin) {
           try {
             await supabaseAdmin.from("registrations").update(updatePayload).eq("id", registration.id);
+            if (userImage) {
+              await supabaseAdmin.from("profiles").upsert({
+                id: registration.id,
+                avatar_url: userImage,
+                updated_at: new Date().toISOString()
+              }, { onConflict: "id" });
+            }
           } catch (e) {
             console.error("Supabase OAuth linking update failed:", e);
           }

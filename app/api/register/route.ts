@@ -51,16 +51,17 @@ const TASK_XP_REWARDS: Record<string, number> = {
 export async function GET() {
   try {
     if (supabaseAdmin) {
-      // 1. Fetch registrations
+      // 1. Fetch registrations with their profiles avatar_url
       const { data: regs, error: regsErr } = await supabaseAdmin
         .from("registrations")
-        .select("*")
+        .select("*, profiles(avatar_url)")
         .order("registered_at", { ascending: false });
 
       if (!regsErr && regs) {
         const enrichedRegs = regs.map((r: any) => {
           return {
             ...r,
+            avatar_url: r.profiles?.avatar_url || null,
             total_xp: Number(r.total_xp || 0)
           };
         });

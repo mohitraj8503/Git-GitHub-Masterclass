@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     // 1. Fetch submission details and student info
     const { data: sub, error: subErr } = await supabaseAdmin
       .from("submissions")
-      .select("*, registrations(enrollment_number, total_xp), assignments(due_date)")
+      .select("*, registrations(id, enrollment_number, total_xp), assignments(title, due_date, max_marks)")
       .eq("id", submission_id)
       .single();
 
@@ -41,35 +41,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Submission not found in database." }, { status: 404 });
     }
 
+    const studentId = (sub.registrations as any)?.id;
     const studentEnroll = (sub.registrations as any)?.enrollment_number;
     const dueDate = (sub.assignments as any)?.due_date;
-    const oldMarks = sub.marks_obtained;
+    const assignmentTitle = (sub.assignments as any)?.title || "Assignment";
+    const maxMarks = Number((sub.assignments as any)?.max_marks || 10);
 
-    if (!studentEnroll) {
+    if (!studentEnroll || !studentId) {
       return NextResponse.json({ success: false, error: "Student registration details not found for submission." }, { status: 404 });
     }
 
-    // 2. Calculate New XP Payouts
-    const baseGradeXp = calculateGradeXp(marksNum);
-    
-    // Check if submitted before deadline (+20 XP)
-    let earlySubmissionXp = 0;
-    if (dueDate && new Date(sub.submitted_at).getTime() < new Date(dueDate).getTime()) {
-      earlySubmissionXp = 20;
-    }
+    // 2. Calculate Proportional XP: XP = (marks / max_marks) * 100
+    const calculatedXp = Math.round((marksNum / maxMarks) * 100) + bonusXp;
 
-    const newCalculatedXp = baseGradeXp + earlySubmissionXp + bonusXp;
+    const reasonStr = `Assignment: ${assignmentTitle} (Sub ID: ${submission_id}) — Grade: ${marksNum}/${maxMarks}`;
 
-    // 3. Check for previous evaluations to handle re-grading differentials
-    const { data: pastTxs } = await supabaseAdmin
-      .from("xp_transactions")
-      .select("xp_amount")
-      .eq("enrollment_number", studentEnroll)
-      .eq("reference_id", submission_id)
-      .in("action_type", ["grade_assignment", "grade_assignment_adjust"]);
+    // 3. Check for previous evaluation in xp_awards to handle re-grading
+    const { data: existingAward } = await supabaseAdmin
+      .from("xp_awards")
+      .select("*")
+      .eq("student_id", studentId)
+      .like("reason", `%Sub ID: ${submission_id}%`)
+      .maybeSingle();
 
-    const oldAwardedXp = (pastTxs || []).reduce((sum, tx) => sum + (tx.xp_amount || 0), 0);
-    const xpDiff = newCalculatedXp - oldAwardedXp;
+    const oldAwardedXp = existingAward ? existingAward.amount : 0;
+    const xpDiff = calculatedXp - oldAwardedXp;
 
     // 4. Update submission in database
     const { data: updatedSub, error: updateErr } = await supabaseAdmin
@@ -86,36 +82,53 @@ export async function POST(request: Request) {
       throw updateErr;
     }
 
-    // 5. Execute XP Transactions atomically if there is any difference
+    // 5. Execute XP Awards updates/inserts atomically
     if (xpDiff !== 0) {
-      const actionType = oldAwardedXp > 0 ? "grade_assignment_adjust" : "grade_assignment";
-      
-      // Log the transaction
-      await supabaseAdmin.from("xp_transactions").insert({
-        enrollment_number: studentEnroll,
-        action_type: actionType,
-        xp_amount: xpDiff,
-        reference_id: submission_id,
-      });
+      if (existingAward) {
+        // Update the existing award
+        const { error: updAwardErr } = await supabaseAdmin
+          .from("xp_awards")
+          .update({
+            amount: calculatedXp,
+            reason: reasonStr,
+            awarded_by: "Admin"
+          })
+          .eq("id", existingAward.id);
+        if (updAwardErr) throw updAwardErr;
+      } else {
+        // Create new award
+        const { error: insAwardErr } = await supabaseAdmin
+          .from("xp_awards")
+          .insert({
+            student_id: studentId,
+            amount: calculatedXp,
+            reason: reasonStr,
+            awarded_by: "Admin"
+          });
+        if (insAwardErr) throw insAwardErr;
+      }
 
       // Update total_xp in registrations table
       const currentXp = Number((sub.registrations as any)?.total_xp || 0);
       const newTotalXp = currentXp + xpDiff;
 
-      await supabaseAdmin
+      const { error: updRegErr } = await supabaseAdmin
         .from("registrations")
         .update({ total_xp: newTotalXp })
-        .eq("enrollment_number", studentEnroll);
+        .eq("id", studentId);
+      if (updRegErr) throw updRegErr;
     }
 
-    // 6. Check and award First Assignment Badge if this is the first one graded
-    const { count: gradedCount } = await supabaseAdmin
-      .from("xp_transactions")
-      .select("id", { count: "exact", head: true })
-      .eq("enrollment_number", studentEnroll)
-      .eq("action_type", "grade_assignment");
+    // 6. Check and award First Assignment Badge if this is the first graded assignment
+    const { data: allAwards } = await supabaseAdmin
+      .from("xp_awards")
+      .select("id")
+      .eq("student_id", studentId)
+      .like("reason", "Assignment:%");
 
-    if ((gradedCount || 0) <= 1) {
+    const gradedCount = allAwards ? allAwards.length : 0;
+
+    if (gradedCount <= 1) {
       // Award the badge if not already unlocked
       const { data: hasBadge } = await supabaseAdmin
         .from("student_achievements")
@@ -132,18 +145,18 @@ export async function POST(request: Request) {
 
         // Award badge bonus (+40 XP)
         const badgeBonusXp = 40;
-        await supabaseAdmin.from("xp_transactions").insert({
-          enrollment_number: studentEnroll,
-          action_type: "achievement_unlock",
-          xp_amount: badgeBonusXp,
-          reference_id: "first_assignment",
+        await supabaseAdmin.from("xp_awards").insert({
+          student_id: studentId,
+          amount: badgeBonusXp,
+          reason: "Badge Unlock: First Assignment",
+          awarded_by: "System"
         });
 
         // Update registrations total_xp
         const { data: reg } = await supabaseAdmin
           .from("registrations")
           .select("total_xp")
-          .eq("enrollment_number", studentEnroll)
+          .eq("id", studentId)
           .single();
 
         if (reg) {
@@ -151,7 +164,7 @@ export async function POST(request: Request) {
           await supabaseAdmin
             .from("registrations")
             .update({ total_xp: finalXp })
-            .eq("enrollment_number", studentEnroll);
+            .eq("id", studentId);
         }
       }
     }
@@ -159,9 +172,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       submission: updatedSub,
-      xpEarned: newCalculatedXp,
+      xpEarned: calculatedXp,
       xpDiff,
-      message: `Submission graded successfully! Total XP awarded: ${newCalculatedXp} XP.`,
+      message: `Submission graded successfully! Total XP awarded: ${calculatedXp} XP.`,
     });
   } catch (err: any) {
     console.error("Evaluation handler error:", err);

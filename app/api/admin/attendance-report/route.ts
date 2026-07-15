@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
 import { WORKSHOP_DAYS } from "@/lib/config";
 
+export const dynamic = "force-dynamic";
+
 const WORKING_DIR = process.cwd();
 
 async function getLocalData() {

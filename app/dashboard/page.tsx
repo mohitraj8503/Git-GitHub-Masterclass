@@ -8,6 +8,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import CountdownRing from "@/components/CountdownRing";
 import LivePollingStudent from "@/components/LivePollingStudent";
 import { INSTITUTION_CODE, WORKSHOP_DAYS, UNKNOWN_BRANCH_LABEL, ATTENDANCE_WINDOW_MINUTES } from "@/lib/config";
+import { StudentAvatar } from "@/components/StudentAvatar";
 
 // ---- helpers ----
 const getTimeGreeting = (timestamp: number) => {
@@ -885,15 +886,8 @@ export default function DashboardPage() {
         {/* Sidebar Profile Card */}
         {registeredUser && (
           <div className="db-sidebar-profile-card">
-            <div className="db-sidebar-profile-avatar">
-              {profilePhoto ? (
-                <img src={`${profilePhoto}?t=${photoTimestamp}`} alt="avatar" />
-              ) : (
-                <span className="db-sidebar-profile-avatar-letter">
-                  {registeredUser.name ? registeredUser.name.charAt(0).toUpperCase() : "S"}
-                </span>
-              )}
-
+            <div className="db-sidebar-profile-avatar" style={{ border: "none", background: "none" }}>
+              <StudentAvatar name={registeredUser.name} email={registeredUser.email} avatarUrl={profilePhoto} size={42} />
             </div>
             <div className="db-sidebar-profile-info">
               <div className="db-sidebar-profile-name">{registeredUser.name || "Student"}</div>
@@ -959,13 +953,7 @@ export default function DashboardPage() {
         {/* Header Bar */}
         <header className="db-header">
           <div className="db-header-welcome">
-            {profilePhoto ? (
-              <img src={`${profilePhoto}?t=${photoTimestamp}`} alt="Avatar" className="db-header-user-avatar" />
-            ) : (
-              <div className="db-header-user-avatar" style={{ backgroundColor: "#f3f4f6", display: "flex", justifyContent: "center", alignItems: "center", fontWeight: "bold", fontSize: "16px", color: "#6b7280" }}>
-                {registeredUser.name ? registeredUser.name.charAt(0).toUpperCase() : "S"}
-              </div>
-            )}
+            <StudentAvatar name={registeredUser.name} email={registeredUser.email} avatarUrl={profilePhoto} size={42} className="db-header-user-avatar" style={{ border: "none", background: "none" }} />
             <div className="db-header-greeting-block">
               <span className="db-header-greeting-time">{getTimeGreeting(nowTs)},</span>
               <h1 className="db-header-greeting-name">{registeredUser.name || "Student"} 👋</h1>
@@ -1900,7 +1888,7 @@ export default function DashboardPage() {
           );
         })()}
 
-        {/* TAB: RESOURCES */}
+           {/* TAB: RESOURCES */}
         {currentTab === "resources" && (
           <div className="db-projects-section animate-in fade-in duration-300">
             <h3 className="db-section-title">Session-wise Resources</h3>
@@ -1924,41 +1912,75 @@ export default function DashboardPage() {
                 <h4 style={{ margin: "0 0 8px", fontWeight: "700", fontSize: "18px" }}>No resources uploaded yet</h4>
                 <p style={{ margin: 0, fontSize: "14px", color: "var(--db-text-muted)" }}>They will appear here once the admin publishes them.</p>
               </div>
-            ) : (
-              <div className="db-project-list">
-                {resources.map((res, idx) => (
-                  <div className="db-project-row" key={res.id || idx}>
-                    <div className="db-project-info">
-                      <div className="db-project-icon" style={{ fontWeight: "bold" }}>
-                        💾
-                      </div>
-                      <div>
-                        <h4 className="db-project-name">{res.title}</h4>
-                        <span className="db-project-url">Resource Format: {res.type}</span>
-                      </div>
-                    </div>
-                    <a href={res.url} target="_blank" rel="noopener noreferrer" className="explore-btn" style={{ padding: "8px 16px", fontSize: "12px", height: "auto" }} onClick={async () => {
-                      try {
-                        await fetch("/api/tasks/complete", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            enrollmentNumber: registeredUser?.enrollmentNumber,
-                            taskId: "download_slides",
-                            source: "resource-view",
-                            metadata: { resource_id: res.id, resource_title: res.title },
-                          }),
-                        });
-                      } catch (e) {
-                        console.error("Failed to record resource view task:", e);
-                      }
-                    }}>
-                      Get Resource
-                    </a>
-                  </div>
-                ))}
-              </div>
-            )}
+            ) : (() => {
+              // Get days that have resources
+              const activeDays = Array.from({ length: 7 }, (_, i) => i + 1).filter(dayNum => 
+                resources.some((r: any) => Number(r.session_number) === dayNum)
+              );
+
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  {activeDays.map(dayNum => {
+                    const dayRes = resources.filter((r: any) => Number(r.session_number) === dayNum);
+
+                    return (
+                      <details key={dayNum} open style={{ border: "1.5px solid rgba(0,0,0,0.06)", borderRadius: "16px", overflow: "hidden", background: "#fff", boxShadow: "var(--card-shadow)" }}>
+                        <summary style={{ padding: "14px 20px", cursor: "pointer", background: "#f8fafc", fontWeight: "800", fontSize: "14px", display: "flex", justifyContent: "space-between", alignItems: "center", outline: "none", userSelect: "none" }}>
+                          <span style={{ color: "var(--db-text-primary)" }}>Day {dayNum} Resources</span>
+                          <span style={{ fontSize: "11px", fontWeight: "900", background: "rgba(16,185,129,0.1)", color: "#10b981", padding: "2px 8px", borderRadius: "10px", border: "1px solid rgba(16,185,129,0.2)" }}>
+                            {dayRes.length} {dayRes.length === 1 ? 'Item' : 'Items'}
+                          </span>
+                        </summary>
+                        <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "12px", borderTop: "1.5px solid rgba(0,0,0,0.06)" }}>
+                          {dayRes.map((res: any, idx) => {
+                            // Get clear icon by type
+                            let icon = "💾";
+                            const typeLower = (res.type || "").toLowerCase();
+                            if (typeLower.includes("ppt")) icon = "📊";
+                            else if (typeLower.includes("pdf")) icon = "📄";
+                            else if (typeLower.includes("video") || typeLower.includes("recording")) icon = "🎥";
+                            else if (typeLower.includes("link")) icon = "🔗";
+                            else if (typeLower.includes("doc")) icon = "📝";
+
+                            return (
+                              <div className="db-project-row" key={res.id || idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderRadius: "12px", background: "#f9fafb", border: "1px solid rgba(0,0,0,0.02)" }}>
+                                <div className="db-project-info" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                                  <div className="db-project-icon" style={{ fontSize: "20px" }}>
+                                    {icon}
+                                  </div>
+                                  <div>
+                                    <h4 className="db-project-name" style={{ margin: 0, fontSize: "13.5px", fontWeight: "800", color: "var(--db-text-primary)" }}>{res.title}</h4>
+                                    <span className="db-project-url" style={{ fontSize: "10.5px", color: "var(--db-text-muted)" }}>Type: {res.type}</span>
+                                  </div>
+                                </div>
+                                <a href={res.url || res.file_url} target="_blank" rel="noopener noreferrer" className="explore-btn" style={{ padding: "8px 16px", fontSize: "12px", height: "auto", display: "inline-flex", alignItems: "center", gap: "6px", textDecoration: "none", borderRadius: "10px" }} onClick={async () => {
+                                  try {
+                                    await fetch("/api/tasks/complete", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({
+                                        enrollmentNumber: registeredUser?.enrollmentNumber,
+                                        taskId: "download_slides",
+                                        source: "resource-view",
+                                        metadata: { resource_id: res.id, resource_title: res.title },
+                                      }),
+                                    });
+                                  } catch (e) {
+                                    console.error("Failed to record resource view task:", e);
+                                  }
+                                }}>
+                                  Get Resource ➔
+                                </a>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </details>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         )}
 
