@@ -41,8 +41,8 @@ export default function ChangelogPage() {
           <div className="footer-text-wrapper">
             <div className="footer-text">Git &amp; GitHub Masterclass</div>
           </div>
-          <a href="https://forms.gle/GfyDohyNo6wbLrQq7" target="_blank" className="footer-button w-inline-block"><div className="unique-button-text-wrapper">
-              <div className="regular-xl max-width-96">REGISTER NOW</div>
+          <a href="javascript:void(0)" className="footer-button w-inline-block" style={{ cursor: "not-allowed", opacity: 0.7 }}><div className="unique-button-text-wrapper">
+              <div className="regular-xl max-width-96">REGISTRATIONS CLOSED</div>
             </div>
             <AssetImage src="/images/star-20shape.svg" loading="lazy" alt="" className="unique-button-shape" /></a>
         </div>

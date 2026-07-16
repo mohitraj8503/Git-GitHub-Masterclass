@@ -17,7 +17,7 @@ export default function Navbar() {
             <AssetImage src="/images/arka-jain-logo-wide.png" loading="lazy" alt="Arka Jain University" className="arka-jain-header-logo" />
           </a>
           <div className="nav-buttons-wrapper">
-            <a href="https://discord.com/" target="_blank" className="button secondary w-button">Join Community</a>
+            <a href="https://discord.com/events/1526478795857592401/1526481750807674881" target="_blank" className="button secondary w-button">Join Community</a>
             <ShuffleCapsule />
           </div>
           <div data-w-id="3a69cf98-d524-c705-09d0-7efc696f4ebd" className="hamburger-menu open-menu">
@@ -60,7 +60,7 @@ export default function Navbar() {
             </div>
           </div>
           <div className="adaptation-menu-buttons">
-            <a href="https://discord.com/" target="_blank" className="button secondary w-button">Join Community</a>
+            <a href="https://discord.com/events/1526478795857592401/1526481750807674881" target="_blank" className="button secondary w-button">Join Community</a>
             <ShuffleCapsule />
           </div>
         </div>

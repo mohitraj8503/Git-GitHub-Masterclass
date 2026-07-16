@@ -173,6 +173,13 @@ export default function DashboardPage() {
   const [savingProfile, setSavingProfile] = useState<boolean>(false);
 
 
+  // Feedback states
+  const [showFeedbackModal, setShowFeedbackModal] = useState<boolean>(false);
+  const [feedbackRating, setFeedbackRating] = useState<number>(0);
+  const [hoveredRating, setHoveredRating] = useState<number>(0);
+  const [feedbackMessage, setFeedbackMessage] = useState<string>("");
+  const [submittingFeedback, setSubmittingFeedback] = useState<boolean>(false);
+
   const BIO_MAX = 200;
 
   // Validation + UX state
@@ -182,6 +189,48 @@ export default function DashboardPage() {
   const [copied, setCopied] = useState<boolean>(false);
   const [initialSnapshot, setInitialSnapshot] = useState<string>("");
   const [isDirty, setIsDirty] = useState<boolean>(false);
+
+  const handleSubmitFeedback = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!registeredUser) return;
+    if (feedbackRating === 0) {
+      showToast("error", "Please select a rating.");
+      return;
+    }
+    if (!feedbackMessage.trim()) {
+      showToast("error", "Please enter your message.");
+      return;
+    }
+    setSubmittingFeedback(true);
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enrollmentNumber: registeredUser.enrollmentNumber || registeredUser.enrollment_number,
+          name: registeredUser.name,
+          email: registeredUser.email,
+          message: feedbackMessage,
+          rating: feedbackRating
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("success", "Thank you for your feedback! 🎉");
+        triggerFloatingXp(10, "Feedback Submitted! 📝");
+        setFeedbackRating(0);
+        setFeedbackMessage("");
+        setShowFeedbackModal(false);
+        loadLmsData();
+      } else {
+        showToast("error", data.error || "Failed to submit feedback.");
+      }
+    } catch (err: any) {
+      showToast("error", err.message || "Failed to submit feedback.");
+    } finally {
+      setSubmittingFeedback(false);
+    }
+  };
 
   const showToast = (type: "success" | "error", message: string) => {
     setToast({ type, message });
@@ -303,6 +352,12 @@ export default function DashboardPage() {
   const [checkinSuccess, setCheckinSuccess] = useState(false);
   const [nowTs, setNowTs] = useState(Date.now());
 
+  // Always update current timestamp every second to drive countdowns on all tabs
+  useEffect(() => {
+    const tickInt = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(tickInt);
+  }, []);
+
   // Poll the active attendance window while the Attendance tab is open.
   useEffect(() => {
     if (currentTab !== "attendance" || !registeredUser) return;
@@ -327,14 +382,11 @@ export default function DashboardPage() {
         /* keep previous state on transient errors */
       }
     };
-    const tick = () => setNowTs(Date.now());
     poll();
     const pollInt = setInterval(poll, 3000);
-    const tickInt = setInterval(tick, 1000);
     return () => {
       alive = false;
       clearInterval(pollInt);
-      clearInterval(tickInt);
     };
   }, [currentTab, registeredUser]);
 
@@ -360,9 +412,13 @@ export default function DashboardPage() {
       if (peerRes.success && Array.isArray(peerRes.registrations)) {
         setPeers(peerRes.registrations);
         const myEnroll = enrollment.trim().toLowerCase();
+        const myEmail = (registeredUser.email || "").trim().toLowerCase();
         const currentRecord = peerRes.registrations.find(
-          (p: any) =>
-            (p.enrollmentNumber || p.enrollment_number || "").trim().toLowerCase() === myEnroll
+          (p: any) => {
+            const pEnroll = (p.enrollmentNumber || p.enrollment_number || "").trim().toLowerCase();
+            const pEmail = (p.email || "").trim().toLowerCase();
+            return (myEnroll && pEnroll === myEnroll) || (myEmail && pEmail === myEmail);
+          }
         );
         if (currentRecord) {
           const updatedUser = {
@@ -379,6 +435,7 @@ export default function DashboardPage() {
           // Only update if something actually changed to avoid infinite loop
           if (
             registeredUser.name !== updatedUser.name ||
+            registeredUser.enrollmentNumber !== updatedUser.enrollmentNumber ||
             registeredUser.branch !== updatedUser.branch ||
             registeredUser.yearOfStudy !== updatedUser.yearOfStudy ||
             registeredUser.email !== updatedUser.email ||
@@ -1353,7 +1410,7 @@ export default function DashboardPage() {
                           </div>
                         </button>
 
-                        <a href="https://discord.gg/" target="_blank" rel="noopener noreferrer" style={{
+                        <a href="https://discord.com/events/1526478795857592401/1526481750807674881" target="_blank" rel="noopener noreferrer" style={{
                           display: "flex",
                           alignItems: "center",
                           gap: "10px",
@@ -1373,105 +1430,140 @@ export default function DashboardPage() {
                             <span style={{ fontSize: "9px", color: "rgba(88, 101, 242, 0.7)" }}>Community</span>
                           </div>
                         </a>
+
+                        <button onClick={() => setShowFeedbackModal(true)} style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          background: "rgba(255, 70, 70, 0.08)",
+                          border: "1px solid rgba(255, 70, 70, 0.2)",
+                          borderRadius: "12px",
+                          padding: "10px 14px",
+                          color: "#ef4444",
+                          cursor: "pointer",
+                          transition: "all 0.2s",
+                          textAlign: "left"
+                        }} className="quick-action-btn">
+                          <span style={{ fontSize: "18px" }}>⭐</span>
+                          <div style={{ display: "flex", flexDirection: "column" }}>
+                            <span style={{ fontWeight: "750", fontSize: "12px" }}>Feedback</span>
+                            <span style={{ fontSize: "9px", color: "var(--db-text-muted)" }}>Rate us</span>
+                          </div>
+                        </button>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                 {/* Right: Upcoming Workshop */}
-                <div className="event-card">
-                  <div>
-                    <span className="event-card-badge" style={{ color: "var(--db-accent-orange)", fontWeight: 800 }}>UPCOMING WORKSHOP</span>
-                    <h3 className="event-card-title">Git &amp; GitHub Masterclass</h3>
-                  </div>
-
-                  <div className="event-card-details">
-                    <div className="event-card-detail">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                      <span>15 July 2026</span>
-                    </div>
-                    <div className="event-card-detail">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                      <span>12:30 PM – 1:30 PM</span>
-                    </div>
-                    <div className="event-card-detail">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                      <span>Seminar Hall, AJU Campus</span>
-                    </div>
-                  </div>
-
-                  {/* Countdown timer to fill height cleanly */}
+                  {/* Right: Upcoming Workshop */}
                   {(() => {
-                    const targetTime = new Date("2026-07-15T12:30:00").getTime();
-                    const diffMs = targetTime - nowTs;
-                    let days = 0;
-                    let hours = 0;
-                    let mins = 0;
-                    if (diffMs > 0) {
-                      days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-                      hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                      mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                    const now = new Date(nowTs);
+                    // Find the first session that has not ended yet (session end is 13:30)
+                    let targetDay = SCHEDULE_DAYS.find(sd => {
+                      const sessionEnd = new Date(`${sd.date}T13:30:00`).getTime();
+                      return nowTs <= sessionEnd;
+                    });
+                    if (!targetDay) {
+                      targetDay = SCHEDULE_DAYS[SCHEDULE_DAYS.length - 1]; // Fallback to last day
                     }
-                    const padZero = (n: number) => String(n).padStart(2, "0");
 
-                    return (
-                      <div className="event-countdown-wrapper" style={{
-                        background: "rgba(255, 255, 255, 0.45)",
-                        border: "1px solid rgba(255, 255, 255, 0.6)",
-                        borderRadius: "16px",
-                        padding: "14px 18px",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "8px",
-                        marginTop: "4px",
-                        marginBottom: "4px"
-                      }}>
-                        <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--db-text-muted)", letterSpacing: "1px", textTransform: "uppercase" }}>STARTS IN</span>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <div style={{ textAlign: "center" }}>
-                            <div style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 12px", fontSize: "20px", fontWeight: "900", color: "var(--db-text-primary)", minWidth: "28px", lineHeight: 1 }}>
-                              {padZero(days)}
-                            </div>
-                            <div style={{ fontSize: "9px", fontWeight: "700", color: "var(--db-text-muted)", marginTop: "4px", textTransform: "uppercase" }}>Days</div>
-                          </div>
-                          <span style={{ color: "rgba(0,0,0,0.2)", fontWeight: "900", fontSize: "18px", marginTop: "-14px" }}>:</span>
-                          <div style={{ textAlign: "center" }}>
-                            <div style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 12px", fontSize: "20px", fontWeight: "900", color: "var(--db-text-primary)", minWidth: "28px", lineHeight: 1 }}>
-                              {padZero(hours)}
-                            </div>
-                            <div style={{ fontSize: "9px", fontWeight: "700", color: "var(--db-text-muted)", marginTop: "4px", textTransform: "uppercase" }}>Hours</div>
-                          </div>
-                          <span style={{ color: "rgba(0,0,0,0.2)", fontWeight: "900", fontSize: "18px", marginTop: "-14px" }}>:</span>
-                          <div style={{ textAlign: "center" }}>
-                            <div style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 12px", fontSize: "20px", fontWeight: "900", color: "var(--db-text-primary)", minWidth: "28px", lineHeight: 1 }}>
-                              {padZero(mins)}
-                            </div>
-                            <div style={{ fontSize: "9px", fontWeight: "700", color: "var(--db-text-muted)", marginTop: "4px", textTransform: "uppercase" }}>Min</div>
-                          </div>
+                    const targetTime = new Date(`${targetDay.date}T12:30:00`).getTime();
+                    const diffMs = targetTime - nowTs;
+                     let hours = 0;
+                     let mins = 0;
+                     let secs = 0;
+                     if (diffMs > 0) {
+                       hours = Math.floor(diffMs / (1000 * 60 * 60));
+                       mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                       secs = Math.floor((diffMs % (1000 * 60)) / 1000);
+                     }
+                     const padZero = (n: number) => String(n).padStart(2, "0");
+                     const formatDate = (dateStr: string) => {
+                       const d = new Date(`${dateStr}T00:00:00`);
+                       const options: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", year: "numeric" };
+                       return d.toLocaleDateString("en-GB", options);
+                     };
+ 
+                     return (
+                       <div className="event-card">
+                         <div>
+                           <span className="event-card-badge" style={{ color: "var(--db-accent-orange)", fontWeight: 800 }}>UPCOMING WORKSHOP - DAY {targetDay.day}</span>
+                           <h3 className="event-card-title">Git &amp; GitHub Masterclass</h3>
+                         </div>
+ 
+                         <div className="event-card-details">
+                           <div className="event-card-detail">
+                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                             <span>{formatDate(targetDay.date)}</span>
+                           </div>
+                           <div className="event-card-detail">
+                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                             <span>12:30 PM – 1:30 PM</span>
+                           </div>
+                           <div className="event-card-detail">
+                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                             <span>Seminar Hall, AJU Campus</span>
+                           </div>
+                         </div>
+ 
+                         {/* Countdown timer to fill height cleanly */}
+                         <div className="event-countdown-wrapper" style={{
+                           background: "rgba(255, 255, 255, 0.45)",
+                           border: "1px solid rgba(255, 255, 255, 0.6)",
+                           borderRadius: "16px",
+                           padding: "14px 18px",
+                           display: "flex",
+                           flexDirection: "column",
+                           gap: "8px",
+                           marginTop: "4px",
+                           marginBottom: "4px"
+                         }}>
+                           <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--db-text-muted)", letterSpacing: "1px", textTransform: "uppercase" }}>STARTS IN</span>
+                           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                             <div style={{ textAlign: "center" }}>
+                               <div style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 12px", fontSize: "20px", fontWeight: "900", color: "var(--db-text-primary)", minWidth: "28px", lineHeight: 1 }}>
+                                 {padZero(hours)}
+                               </div>
+                               <div style={{ fontSize: "9px", fontWeight: "700", color: "var(--db-text-muted)", marginTop: "4px", textTransform: "uppercase" }}>Hours</div>
+                             </div>
+                             <span style={{ color: "rgba(0,0,0,0.2)", fontWeight: "900", fontSize: "18px", marginTop: "-14px" }}>:</span>
+                             <div style={{ textAlign: "center" }}>
+                               <div style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 12px", fontSize: "20px", fontWeight: "900", color: "var(--db-text-primary)", minWidth: "28px", lineHeight: 1 }}>
+                                 {padZero(mins)}
+                               </div>
+                               <div style={{ fontSize: "9px", fontWeight: "700", color: "var(--db-text-muted)", marginTop: "4px", textTransform: "uppercase" }}>Min</div>
+                             </div>
+                             <span style={{ color: "rgba(0,0,0,0.2)", fontWeight: "900", fontSize: "18px", marginTop: "-14px" }}>:</span>
+                             <div style={{ textAlign: "center" }}>
+                               <div style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 12px", fontSize: "20px", fontWeight: "900", color: "var(--db-text-primary)", minWidth: "28px", lineHeight: 1 }}>
+                                 {padZero(secs)}
+                               </div>
+                               <div style={{ fontSize: "9px", fontWeight: "700", color: "var(--db-text-muted)", marginTop: "4px", textTransform: "uppercase" }}>Sec</div>
+                             </div>
+                           </div>
+                         </div>
+
+                        <div className="event-meta-row" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", flexWrap: "wrap", marginBottom: "4px" }}>
+                          <span style={{
+                            display: "inline-block",
+                            fontSize: "11px",
+                            fontWeight: "750",
+                            background: "rgba(107, 114, 128, 0.1)",
+                            color: "#4b5563",
+                            border: "1px solid rgba(107, 114, 128, 0.2)",
+                            padding: "4px 12px",
+                            borderRadius: "20px"
+                          }}>🚫 Registrations Closed</span>
+                          <div className="event-card-offline-badge" style={{ margin: 0, padding: "4px 12px" }}>Offline Workshop</div>
                         </div>
+
+                        <button className="event-card-btn" onClick={() => setCurrentTab("schedule")}>
+                          <span>View Schedule</span>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                        </button>
                       </div>
                     );
                   })()}
-
-                  <div className="event-meta-row" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", flexWrap: "wrap", marginBottom: "4px" }}>
-                    <span style={{
-                      display: "inline-block",
-                      fontSize: "11px",
-                      fontWeight: "750",
-                      background: "rgba(239, 68, 68, 0.1)",
-                      color: "#dc2626",
-                      border: "1px solid rgba(239, 68, 68, 0.2)",
-                      padding: "4px 12px",
-                      borderRadius: "20px"
-                    }}>🔥 Only 8 seats left!</span>
-                    <div className="event-card-offline-badge" style={{ margin: 0, padding: "4px 12px" }}>Offline Workshop</div>
-                  </div>
-
-                  <button className="event-card-btn" onClick={() => setCurrentTab("schedule")}>
-                    <span>View Schedule</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-                  </button>
-                </div>
               </div>
 
               {/* ======= ROW 2: 4 Stat Cards ======= */}
@@ -3168,6 +3260,204 @@ export default function DashboardPage() {
             <button className="explore-btn" style={{ width: "100%", height: "45px" }} onClick={() => setUnlockedBadgeModal(null)}>
               Awesome!
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Feedback Modal */}
+      {showFeedbackModal && (
+        <div
+          onClick={() => {
+            setShowFeedbackModal(false);
+            setFeedbackRating(0);
+            setFeedbackMessage("");
+          }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(15, 23, 42, 0.6)",
+            zIndex: 20000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+            backdropFilter: "blur(8px)"
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: "24px",
+              width: "100%",
+              maxWidth: "500px",
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+              padding: "36px 36px 28px",
+              position: "relative",
+              display: "flex",
+              flexDirection: "column"
+            }}
+          >
+            {/* Close btn */}
+            <button
+              onClick={() => {
+                setShowFeedbackModal(false);
+                setFeedbackRating(0);
+                setFeedbackMessage("");
+              }}
+              style={{
+                position: "absolute",
+                top: "20px",
+                right: "20px",
+                background: "#f1f5f9",
+                border: "none",
+                borderRadius: "50%",
+                width: "32px",
+                height: "32px",
+                cursor: "pointer",
+                color: "#94a3b8",
+                fontSize: "14px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: "700"
+              }}
+            >
+              ✕
+            </button>
+
+            <span style={{
+              fontSize: "11px",
+              fontWeight: "700",
+              color: "#d97706",
+              backgroundColor: "#fef3c7",
+              border: "1px solid #fde68a",
+              borderRadius: "20px",
+              padding: "4px 14px",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              alignSelf: "flex-start",
+              marginBottom: "16px"
+            }}>
+              Feedback
+            </span>
+
+            <h3 style={{ margin: "0 0 8px", fontSize: "24px", fontWeight: "900", color: "#0f172a" }}>
+              Share Your Feedback
+            </h3>
+            <p style={{ margin: "0 0 24px", fontSize: "13px", color: "#64748b", lineHeight: "1.5" }}>
+              How was your experience today? Rate us on our 10-star scale.
+            </p>
+
+            <form onSubmit={handleSubmitFeedback} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              {/* Star Rating Grid */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <span style={{ fontSize: "11px", fontWeight: "800", color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Your Rating: {feedbackRating > 0 ? `${feedbackRating} / 10` : "Select stars"}
+                </span>
+                <div style={{ display: "flex", gap: "6px", justifyContent: "center", backgroundColor: "#f8fafc", padding: "16px", borderRadius: "16px", border: "1px solid #e2e8f0" }}>
+                  {[...Array(10)].map((_, i) => {
+                    const ratingValue = i + 1;
+                    const isLit = ratingValue <= (hoveredRating || feedbackRating);
+                    const color = isLit ? (ratingValue <= 5 ? "#ef4444" : "#f59e0b") : "#cbd5e1";
+                    return (
+                      <button
+                        type="button"
+                        key={ratingValue}
+                        onClick={() => setFeedbackRating(ratingValue)}
+                        onMouseEnter={() => setHoveredRating(ratingValue)}
+                        onMouseLeave={() => setHoveredRating(0)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          fontSize: "24px",
+                          padding: "2px",
+                          transition: "transform 0.1s ease",
+                          transform: ratingValue === hoveredRating ? "scale(1.2)" : "scale(1)",
+                          color: color
+                        }}
+                      >
+                        ★
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "0 8px", fontSize: "11px", fontWeight: "700", color: "#64748b" }}>
+                  <span style={{ color: "#ef4444" }}>1-5: Needs Work (Red)</span>
+                  <span style={{ color: "#f59e0b" }}>6-10: Great (Gold)</span>
+                </div>
+              </div>
+
+              {/* Message Input */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <label style={{ fontSize: "11px", fontWeight: "800", color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Genuine Feedback
+                </label>
+                <textarea
+                  value={feedbackMessage}
+                  onChange={e => setFeedbackMessage(e.target.value)}
+                  placeholder="Tell us what you liked, what went wrong, and how we can improve..."
+                  required
+                  rows={4}
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    borderRadius: "12px",
+                    border: "1px solid #cbd5e1",
+                    fontSize: "14px",
+                    color: "#0f172a",
+                    outline: "none",
+                    transition: "border-color 0.2s",
+                    resize: "none"
+                  }}
+                />
+              </div>
+
+              {/* Submit Buttons */}
+              <div style={{ display: "flex", gap: "12px", marginTop: "8px" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowFeedbackModal(false);
+                    setFeedbackRating(0);
+                    setFeedbackMessage("");
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: "12px",
+                    borderRadius: "12px",
+                    border: "1px solid #e2e8f0",
+                    backgroundColor: "#fff",
+                    color: "#475569",
+                    fontSize: "14px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    transition: "all 0.2s"
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingFeedback || feedbackRating === 0 || !feedbackMessage.trim()}
+                  style={{
+                    flex: 1,
+                    padding: "12px",
+                    borderRadius: "12px",
+                    border: "none",
+                    backgroundColor: feedbackRating === 0 || !feedbackMessage.trim() ? "#cbd5e1" : "#0f172a",
+                    color: "#fff",
+                    fontSize: "14px",
+                    fontWeight: "700",
+                    cursor: feedbackRating === 0 || !feedbackMessage.trim() ? "not-allowed" : "pointer",
+                    transition: "all 0.2s"
+                  }}
+                >
+                  {submittingFeedback ? "Submitting..." : "Submit Feedback"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

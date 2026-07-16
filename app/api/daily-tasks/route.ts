@@ -93,6 +93,15 @@ export async function GET(request: Request) {
 
     const completedTasksToday = await getTaskCompletionsForEnrollment(enrollment);
 
+    // Sync XP for all completed daily tasks (retroactively awards if transaction was missing)
+    for (const taskId of completedTasksToday) {
+      try {
+        await awardXp(enrollment, taskId);
+      } catch (e) {
+        console.error(`Retroactive XP award failed for task ${taskId}:`, e);
+      }
+    }
+
     // Get unlocked achievements
     let unlockedBadges: string[] = [];
     if (supabaseAdmin) {

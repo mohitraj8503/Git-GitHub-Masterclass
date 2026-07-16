@@ -9,8 +9,8 @@ export default function Footer() {
         <div className="footer-text-wrapper">
           <div className="footer-text">Git &amp; GitHub Masterclass</div>
         </div>
-        <a href="https://forms.gle/2FDrawGpibbderMu6" target="_blank" className="footer-button w-inline-block"><div className="unique-button-text-wrapper">
-            <div className="regular-xl max-width-96">REGISTER NOW</div>
+        <a href="javascript:void(0)" className="footer-button w-inline-block" style={{ cursor: "not-allowed", opacity: 0.7 }}><div className="unique-button-text-wrapper">
+            <div className="regular-xl max-width-96">REGISTRATIONS CLOSED</div>
           </div>
           <AssetImage src="/images/star-20shape.svg" loading="lazy" style={{WebkitTransform: 'translate3d(0, 0, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0deg) skew(0, 0)', MozTransform: 'translate3d(0, 0, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0deg) skew(0, 0)', msTransform: 'translate3d(0, 0, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0deg) skew(0, 0)', transform: 'translate3d(0, 0, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0deg) skew(0, 0)'}} alt="" className="unique-button-shape" /></a>
       </div>

@@ -2,11 +2,18 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
 import { getActiveWindow } from "@/lib/attendance";
 
+import { getSession } from "@/lib/session";
+
 export const dynamic = "force-dynamic";
 
 const DEFAULT_AUTH_SECRET = "githubpages-masterclass-admin-secret-key-default-32-chars";
 
 export async function GET() {
+  const session = await getSession();
+  if (!session || session.role !== "admin") {
+    return NextResponse.json({ success: false, error: "Unauthorized: Admins only." }, { status: 401 });
+  }
+
   const start = Date.now();
   const supabaseConfigured = !!supabaseAdmin;
   const authSecret = process.env.ADMIN_SESSION_SECRET || "";

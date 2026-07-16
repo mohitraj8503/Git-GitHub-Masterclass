@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
 import { WORKSHOP_DAYS } from "@/lib/config";
 
+import { getSession } from "@/lib/session";
+
 export const dynamic = "force-dynamic";
 
 const WORKING_DIR = process.cwd();
@@ -24,6 +26,10 @@ async function getLocalData() {
 
 export async function GET() {
   try {
+    const session = await getSession();
+    if (!session || session.role !== "admin") {
+      return NextResponse.json({ success: false, error: "Unauthorized: Admins only." }, { status: 401 });
+    }
     let registrations: any[] = [];
     let attendance: any[] = [];
     let totalRegistered = 0;

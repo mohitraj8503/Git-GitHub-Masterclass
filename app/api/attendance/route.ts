@@ -8,10 +8,14 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const enrollment = searchParams.get("enrollment_number");
-    const studentId = searchParams.get("student_id");
+    const enrollment = searchParams.get("enrollment_number")?.trim();
+    const studentId = searchParams.get("student_id")?.trim();
 
     if (!supabaseAdmin) {
+      return NextResponse.json({ success: true, attendance: [] });
+    }
+
+    if (!enrollment && !studentId) {
       return NextResponse.json({ success: true, attendance: [] });
     }
 

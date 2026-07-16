@@ -1,18 +1,22 @@
 import { supabaseAdmin } from "./supabaseServer";
 
 export const XP_RULES: Record<string, number> = {
-  daily_login: 5,
-  mark_attendance: 20,
-  download_resources: 10,
-  open_notes: 5,
-  submit_github_repo: 30,
-  submit_assignment: 50,
-  early_submission_bonus: 20,
-  excellence_bonus: 20,
-  complete_daily_quiz: 25,
-  quiz_100_percent_bonus: 10,
-  workshop_feedback: 15,
-  daily_completion_bonus: 50,
+   daily_login: 5,
+   mark_attendance: 20,
+   download_resources: 10,
+   download_slides: 10, // alias
+   open_notes: 5,
+   submit_github_repo: 30,
+   push_github: 20, // alias
+   submit_assignment: 50,
+   complete_assignment: 50, // alias
+   early_submission_bonus: 20,
+   excellence_bonus: 20,
+   complete_daily_quiz: 25,
+   quiz_100_percent_bonus: 10,
+   workshop_feedback: 15,
+   fill_feedback: 10, // alias
+   daily_completion_bonus: 50,
 };
 
 export const STREAK_BONUSES: Record<number, number> = {

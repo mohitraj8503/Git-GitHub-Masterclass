@@ -4,6 +4,8 @@ import path from "path";
 import { supabaseAdmin } from "@/lib/supabaseServer";
 import { WORKSHOP_DAYS } from "@/lib/config";
 
+import { getSession } from "@/lib/session";
+
 export const dynamic = "force-dynamic";
 
 const TASK_XP_REWARDS: Record<string, number> = {
@@ -16,6 +18,10 @@ const TASK_XP_REWARDS: Record<string, number> = {
 
 export async function GET() {
   try {
+    const session = await getSession();
+    if (!session || session.role !== "admin") {
+      return NextResponse.json({ success: false, error: "Unauthorized: Admins only." }, { status: 401 });
+    }
     let totalStudents = 0;
     let avgAttendancePct = 0;
     let resourcesPublished = 0;

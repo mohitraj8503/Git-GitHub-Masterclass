@@ -66,10 +66,12 @@ export default function AdminDashboardPage() {
   const [assignments, setAssignments] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [resources, setResources] = useState<any[]>([]);
+  const [feedbacks, setFeedbacks] = useState<any[]>([]);
   const [loadingStats, setLoadingStats] = useState(true);
   const [loadingStudents, setLoadingStudents] = useState(true);
   const [loadingAssignments, setLoadingAssignments] = useState(true);
   const [loadingResources, setLoadingResources] = useState(true);
+  const [loadingFeedback, setLoadingFeedback] = useState(true);
   const [studentsError, setStudentsError] = useState<string | null>(null);
 
   // Attendance window
@@ -550,15 +552,17 @@ See you there — let's start building! 🚀`);
     setLoadingStudents(true);
     setLoadingAssignments(true);
     setLoadingResources(true);
+    setLoadingFeedback(true);
 
     try {
-      const [statsRes, studRes, assRes, subRes, annRes, resRes] = await Promise.all([
+      const [statsRes, studRes, assRes, subRes, annRes, resRes, feedRes] = await Promise.all([
         fetch("/api/admin/analytics").then(r => r.json()),
         fetch("/api/register").then(r => r.json()),
         fetch("/api/assignments").then(r => r.json()),
         fetch("/api/submissions").then(r => r.json()),
         fetch("/api/announcements").then(r => r.json()),
         fetch("/api/resources").then(r => r.json()),
+        fetch("/api/feedback").then(r => r.json()),
       ]);
 
       if (statsRes.success) {
@@ -592,6 +596,10 @@ See you there — let's start building! 🚀`);
       if (subRes.success) setSubmissions(subRes.submissions || []);
       if (annRes.success) setAnnouncements(annRes.announcements || []);
       if (resRes.success) setResources(resRes.resources || []);
+      if (feedRes.success) {
+        setFeedbacks(feedRes.feedback || []);
+      }
+      setLoadingFeedback(false);
 
       // Health probe (non-blocking for the rest of the dashboard).
       fetch("/api/admin/health").then(r => r.json()).then((h) => {
@@ -1504,6 +1512,7 @@ See you there — let's start building! 🚀`);
     { id: "students", label: "Students", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
     { id: "email", label: "Email Portal", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> },
     { id: "polls", label: "Live Polls", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> },
+    { id: "feedback", label: "Feedback", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
     { id: "profile", label: "Profile", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
   ];
 
@@ -4638,6 +4647,86 @@ See you there — let's start building! 🚀`);
             </div>
           </div>
         )}
+
+        {/* ======= TAB: FEEDBACK ======= */}
+        {currentTab === "feedback" && (() => {
+          return (
+            <div className="tab-pane animate-in fade-in duration-200" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
+                <div>
+                  <h2 style={{ margin: 0, fontFamily: "var(--font-anton)", fontSize: "28px", textTransform: "uppercase", letterSpacing: "1px", color: "var(--db-text-primary)" }}>
+                    Feedback Submissions
+                  </h2>
+                  <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--db-text-muted)" }}>
+                    View ratings and genuine feedback submitted by students.
+                  </p>
+                </div>
+              </div>
+
+              {/* Feedback Cards List */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                {loadingFeedback ? <LoadingSpinner label="Loading feedback..." /> :
+                  feedbacks.length > 0 ? feedbacks.map((f: any) => {
+                    return (
+                      <div className="modern-card animate-in fade-in duration-200" key={f.id} style={{ display: "flex", flexDirection: "column", padding: "24px 28px", backgroundColor: "#fff", border: "1.5px solid rgba(0,0,0,0.05)", borderRadius: "20px", gap: "16px" }}>
+                        {/* Header: Rating & Student info */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", borderBottom: "1px solid #f1f5f9", paddingBottom: "14px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                            <div style={{ width: "36px", height: "36px", borderRadius: "50%", backgroundColor: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "800", color: "#64748b", fontSize: "14px" }}>
+                              {f.name ? f.name.charAt(0).toUpperCase() : "S"}
+                            </div>
+                            <div>
+                              <h4 style={{ margin: 0, fontSize: "14px", fontWeight: "800", color: "#0f172a" }}>{f.name}</h4>
+                              <div style={{ fontSize: "11px", color: "var(--db-text-muted)", marginTop: "2px", display: "flex", gap: "6px" }}>
+                                <span style={{ background: "#f8fafc", padding: "1px 6px", borderRadius: "4px", fontWeight: "750" }}>#{f.enrollment_number}</span>
+                                <span>{f.email}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Star Rating Display */}
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
+                            <div style={{ display: "flex", gap: "2px" }}>
+                              {[...Array(10)].map((_, idx) => {
+                                const starVal = idx + 1;
+                                const isLit = starVal <= f.rating;
+                                const color = isLit ? (starVal <= 5 ? "#ef4444" : "#f59e0b") : "#e2e8f0";
+                                return (
+                                  <span key={idx} style={{ color, fontSize: "16px" }}>★</span>
+                                );
+                              })}
+                            </div>
+                            <span style={{ fontSize: "10px", fontWeight: "800", color: f.rating <= 5 ? "#ef4444" : "#f59e0b", textTransform: "uppercase" }}>
+                              Rating: {f.rating} / 10
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Body: Genuine Message */}
+                        <div>
+                          <span style={{ fontSize: "10px", fontWeight: "900", color: "var(--db-text-muted)", letterSpacing: "1px", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Genuine Feedback</span>
+                          <div style={{ backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px", fontSize: "13px", color: "#334155", lineHeight: "1.6", whiteSpace: "pre-wrap" }}>
+                            "{f.message}"
+                          </div>
+                        </div>
+
+                        {/* Footer: Date */}
+                        <div style={{ display: "flex", justifyContent: "flex-end", fontSize: "11px", color: "var(--db-text-muted)", fontWeight: "600" }}>
+                          Submitted at: {new Date(f.submitted_at).toLocaleString()}
+                        </div>
+                      </div>
+                    );
+                  }) : (
+                    <div className="modern-card" style={{ padding: "40px", textAlign: "center", backgroundColor: "#fff", borderRadius: "20px", border: "1.5px solid rgba(0,0,0,0.05)" }}>
+                      <span style={{ fontSize: "36px", display: "block", marginBottom: "12px" }}>💬</span>
+                      <h4 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: "800" }}>No feedback yet</h4>
+                      <p style={{ margin: 0, fontSize: "13px", color: "var(--db-text-muted)" }}>When students submit feedback, it will appear here.</p>
+                    </div>
+                  )}
+              </div>
+            </div>
+          );
+        })()}
       </main>
 
       {/* Cropper Modal */}

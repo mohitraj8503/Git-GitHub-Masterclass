@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
 
+import { getSession } from "@/lib/session";
+
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+    if (!session || session.role !== "admin") {
+      return NextResponse.json({ success: false, error: "Unauthorized: Admins only." }, { status: 401 });
+    }
+
     const { recipients, subject, body, badge } = await request.json();
 
     if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {

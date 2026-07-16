@@ -22,7 +22,7 @@ export default function AboutEvents() {
               — leaving with
               <span className="color-white">links you can put directly on your resume</span>.
             </div>
-            <a href="https://forms.gle/2FDrawGpibbderMu6" target="_blank" className="button primary primary-accent w-inline-block"><div className="medium-m-uppercase">Register Now</div>
+            <a href="javascript:void(0)" className="button primary primary-accent w-inline-block" style={{ cursor: "not-allowed", opacity: 0.7 }}><div className="medium-m-uppercase">Registrations Closed</div>
               <div className="button-icon-wrapper primary-accent-icon">
                 <AssetImage src="/images/arrow-20right-20up-2.svg" loading="lazy" alt="" className="icon-size-16" /></div></a>
           </div>

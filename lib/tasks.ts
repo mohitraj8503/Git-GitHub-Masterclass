@@ -1,12 +1,8 @@
+import { awardXp, XP_RULES } from "./xp";
 import { supabaseAdmin } from "./supabaseServer";
-import { awardXp } from "./xp";
 
 export const TASK_XP_REWARDS: Record<string, number> = {
-  mark_attendance: 20,
-  download_slides: 10,
-  complete_assignment: 40,
-  push_github: 20,
-  fill_feedback: 10,
+  ...XP_RULES,
 };
 
 function normalizeEnrollmentNumber(value: string) {

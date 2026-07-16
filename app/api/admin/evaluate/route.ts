@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
 import { awardXp } from "@/lib/xp";
 
+import { getSession } from "@/lib/session";
+
 export const dynamic = "force-dynamic";
 
 // Calculate base XP based on marks obtained
@@ -17,6 +19,11 @@ function calculateGradeXp(marks: number): number {
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+    if (!session || session.role !== "admin") {
+      return NextResponse.json({ success: false, error: "Unauthorized: Admins only." }, { status: 401 });
+    }
+
     const { submission_id, marks_obtained, mentor_feedback, manual_bonus_xp = 0 } = await request.json();
 
     if (!submission_id || marks_obtained === undefined) {

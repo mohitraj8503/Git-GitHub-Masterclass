@@ -26,7 +26,7 @@ export default function ContactSection() {
                 <h3 className="h3 max-width-240-mobile-200">Email</h3>
                 <div className="absolute-block-icons-wrapper">
                   <AssetImage src="/images/arrow-20right-20up.svg" loading="lazy" alt="" className="absolute-block-icon" /><AssetImage src="/images/arrow-20right-20up.svg" loading="lazy" alt="" className="absolute-block-icon second-icon" />
-                </div></div></a><a href="https://discord.com/" target="_blank" className="contact-block bg-color-light-purple w-inline-block"><div className="contact-block-illustration-wrapper">
+                </div></div></a><a href="https://discord.com/events/1526478795857592401/1526481750807674881" target="_blank" className="contact-block bg-color-light-purple w-inline-block"><div className="contact-block-illustration-wrapper">
                   <AssetImage src="/images/illustration-208.png" loading="lazy" sizes="184px" srcSet="/images/illustration-208-p-500.png 500w,
                       /images/illustration-208-1.png     560w
                 " alt="" className="contact-block-illustration" />

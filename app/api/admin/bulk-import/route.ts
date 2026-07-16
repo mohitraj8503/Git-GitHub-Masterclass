@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
 import ExcelJS from "exceljs";
 
+import { getSession } from "@/lib/session";
+
 export const dynamic = "force-dynamic";
 
 // Simple email validation regex
@@ -9,6 +11,11 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+    if (!session || session.role !== "admin") {
+      return NextResponse.json({ success: false, error: "Unauthorized: Admins only." }, { status: 401 });
+    }
+
     if (!supabaseAdmin) {
       return NextResponse.json({ success: false, error: "Database client not initialized." }, { status: 500 });
     }
