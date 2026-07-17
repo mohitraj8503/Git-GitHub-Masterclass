@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
 import { completeTaskForEnrollment, getTaskCompletionsForEnrollment } from "@/lib/tasks";
-import { awardXp } from "@/lib/xp";
+import { awardXp, syncProfileCompletionXp } from "@/lib/xp";
 import { getRegistrationId } from "@/lib/attendance";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +21,8 @@ export async function GET(request: Request) {
     // we award the XP retroactively and register the completions today!
     const regId = await getRegistrationId(enrollment);
     if (regId && supabaseAdmin) {
+      await syncProfileCompletionXp(enrollment);
+      
       // 1. Sync Attendance
       const { data: attLogs } = await supabaseAdmin
         .from("attendance")

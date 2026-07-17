@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { syncProfileCompletionXp } from "@/lib/xp";
 
 export const dynamic = "force-dynamic";
 
@@ -181,6 +182,8 @@ export async function POST(request: Request) {
     if (dbErr) {
       return NextResponse.json({ success: false, error: dbErr.message }, { status: 500 });
     }
+
+    await syncProfileCompletionXp(enrollmentNumber);
 
     return NextResponse.json({ success: true, avatar_url: avatarUrl });
   } catch (err: any) {

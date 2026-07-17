@@ -1538,6 +1538,13 @@ body.dashboard-body-active {
 .schedule-card-body {
   background: var(--db-card-bg) !important;
   border: 1px solid var(--db-card-border) !important;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+.schedule-card-body:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--db-card-shadow-hover) !important;
+  border-color: var(--db-accent-yellow) !important;
 }
 .schedule-card-head {
   display: flex;
@@ -3738,6 +3745,14 @@ body.dashboard-body-active {
 .badge-item-box.locked {
   filter: grayscale(1) opacity(0.45);
   background: rgba(0,0,0,0.02);
+}
+.badge-item-box.unlocked {
+  border: 1.5px solid #FFD446 !important;
+  background: linear-gradient(to bottom, #ffffff, #fffdf2) !important;
+  box-shadow: 0 0 12px rgba(255, 212, 70, 0.25) !important;
+}
+.badge-item-box.unlocked:hover {
+  box-shadow: 0 0 18px rgba(255, 212, 70, 0.45) !important;
 }
 .badge-item-emoji {
   width: 52px;

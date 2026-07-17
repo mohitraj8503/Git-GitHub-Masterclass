@@ -39,7 +39,17 @@ function useCountUp(target: number, duration = 900) {
 
 import { SCHEDULE_DAYS, STATUS_LABEL, getDayStatus as getSharedDayStatus } from "@/lib/sessions";
 
-const SCHEDULE_VENUE = "Computer Lab 2, Room No. 329, Block Baudhayana, Arka Jain University";
+const SCHEDULE_VENUE = "Computer Lab 2, Room 320, Block Baudhayana, Arka Jain University";
+
+const BADGES_METADATA = [
+  { id: "first_attendance", emoji: "🎯", color: "linear-gradient(135deg, #FFD446, #FFA800)", name: "First Check-In", desc: "Marked attendance for the first time", condition: "Attend any single workshop session" },
+  { id: "first_github_repo", emoji: "📂", color: "linear-gradient(135deg, #10B981, #059669)", name: "First Repo Submit", desc: "Submitted your first GitHub repository", condition: "Submit an assignment containing a github.com repository link" },
+  { id: "first_assignment", emoji: "📝", color: "linear-gradient(135deg, #3B82F6, #2563EB)", name: "First HW Done", desc: "Submitted your first assignment", condition: "Have any assignment reviewed and graded by a mentor" },
+  { id: "perfect_attendance_badge", emoji: "🔥", color: "linear-gradient(135deg, #EC4899, #D946EF)", name: "Perfect Attendance", desc: "Attended all 7 days of the workshop", condition: "Attend all 7 days of the workshop" },
+  { id: "assignment_master_badge", emoji: "💻", color: "linear-gradient(135deg, #F59E0B, #D97706)", name: "Assignment Master", desc: "Submitted all workshop assignments", condition: "Complete and get graded on all published assignments" },
+  { id: "workshop_warrior_badge", emoji: "🚀", color: "linear-gradient(135deg, #8B5CF6, #7C3AED)", name: "Workshop Warrior", desc: "Completed all daily tasks every day", condition: "Attend at least 5 workshop sessions" },
+  { id: "git_github_master_badge", emoji: "🎓", color: "linear-gradient(135deg, #EF4444, #DC2626)", name: "Git & GitHub Master", desc: "Completed the entire workshop requirements", condition: "Earn both Perfect Attendance and Assignment Master" }
+];
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -127,6 +137,9 @@ export default function DashboardPage() {
   const [unlockedBadges, setUnlockedBadges] = useState<string[]>([]);
   const [floatingXps, setFloatingXps] = useState<Array<{ id: number; text: string; x: number; y: number }>>([]);
   const [unlockedBadgeModal, setUnlockedBadgeModal] = useState<any>(null);
+  const [hoveredChartPoint, setHoveredChartPoint] = useState<any | null>(null);
+  const [progressViewType, setProgressViewType] = useState<"combined" | "attendance" | "assignments">("combined");
+  const [showProgressDropdown, setShowProgressDropdown] = useState(false);
 
   // Floating XP trigger
   const triggerFloatingXp = useCallback((amount: number, label: string) => {
@@ -151,6 +164,17 @@ export default function DashboardPage() {
   useEffect(() => {
     const val = localStorage.getItem("last_read_notif");
     if (val) setLastReadNotif(Number(val));
+  }, []);
+
+  // Parse tab parameter from URL search query on load
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab");
+      if (tab) {
+        setCurrentTab(tab);
+      }
+    }
   }, []);
 
   // XP and streak are DERIVED from database records & REAL activity
@@ -394,7 +418,7 @@ export default function DashboardPage() {
     if (!registeredUser) return;
     const enrollment = registeredUser.enrollmentNumber || registeredUser.enrollment_number || "";
     try {
-      const [annRes, assRes, subRes, attRes, peerRes, resRes, taskRes, dailyRes] = await Promise.all([
+      const [annRes, assRes, subRes, attRes, peerRes, resRes, taskRes, dailyRes, badgesRes] = await Promise.all([
         fetch("/api/announcements").then((r) => r.json()),
         fetch("/api/assignments").then((r) => r.json()),
         fetch(`/api/submissions?student_id=${enrollment}`).then((r) => r.json()),
@@ -403,6 +427,7 @@ export default function DashboardPage() {
         fetch("/api/resources").then((r) => r.json()),
         fetch(`/api/tasks/complete?enrollmentNumber=${encodeURIComponent(enrollment)}`).then((r) => r.json()),
         fetch(`/api/daily-tasks?enrollment_number=${encodeURIComponent(enrollment)}`).then((r) => r.json()),
+        fetch(`/api/student/badges?enrollment_number=${encodeURIComponent(enrollment)}`).then((r) => r.json()),
       ]);
 
       if (annRes.success) setAnnouncements(annRes.announcements);
@@ -453,7 +478,21 @@ export default function DashboardPage() {
       if (dailyRes.success) {
         setDailyChecklist(dailyRes.checklist || []);
         setPerfectDayClaimed(dailyRes.perfectDayClaimed);
-        setUnlockedBadges(dailyRes.unlockedBadges || []);
+      }
+      if (badgesRes && badgesRes.success) {
+        const newBadges = badgesRes.unlockedBadges || [];
+        setUnlockedBadges((prevBadges) => {
+          if (prevBadges.length > 0) {
+            const newlyUnlocked = newBadges.filter((b: string) => !prevBadges.includes(b));
+            newlyUnlocked.forEach((bId: string) => {
+              const badgeMeta = BADGES_METADATA.find(bm => bm.id === bId);
+              if (badgeMeta) {
+                showToast("success", `🎉 Badge Unlocked: ${badgeMeta.name}!`);
+              }
+            });
+          }
+          return newBadges;
+        });
       }
     } catch (e) {
       console.error("Failed to load dashboard data:", e);
@@ -849,12 +888,13 @@ export default function DashboardPage() {
   };
 
   const leaderboardMap = new Map<string, any>();
+  const myEnroll = (registeredUser?.enrollmentNumber || registeredUser?.enrollment_number || "").trim().toLowerCase();
 
   // First, seed the map with all peer registrations from DB
   peers.forEach((p: any) => {
     const enroll = (p.enrollmentNumber || p.enrollment_number || p.enroll_number || "").trim().toLowerCase();
     if (!enroll) return;
-    const isYou = enroll === (registeredUser?.enrollmentNumber || "").trim().toLowerCase();
+    const isYou = myEnroll && enroll === myEnroll;
     const userXp = Number(p.total_xp || p.totalXp || 0);
 
     if (!leaderboardMap.has(enroll)) {
@@ -873,15 +913,14 @@ export default function DashboardPage() {
   });
 
   // Always ensure the current logged-in user is in the leaderboard (handles case where peers hasn't loaded yet)
-  if (registeredUser?.enrollmentNumber) {
-    const myEnroll = registeredUser.enrollmentNumber.trim().toLowerCase();
+  if (myEnroll) {
     if (!leaderboardMap.has(myEnroll)) {
       leaderboardMap.set(myEnroll, {
         name: registeredUser.name,
         branch: registeredUser.branch || registeredUser.yearOfStudy || "Student",
         xp: xp,
         you: true,
-        enrollmentNumber: registeredUser.enrollmentNumber,
+        enrollmentNumber: registeredUser.enrollmentNumber || registeredUser.enrollment_number,
         github: profileGithub || "",
         bio: profileBio || "",
         attendanceCount: attendance.length,
@@ -1182,15 +1221,37 @@ export default function DashboardPage() {
 
         {/* TAB: HOME */}
         {currentTab === "home" && (() => {
-          const completionPct = WORKSHOP_DAYS > 0 ? Math.round(((attendance.length * 0.6 + submissions.length * 0.4) / WORKSHOP_DAYS) * 100) : 0;
-          const attendancePct = WORKSHOP_DAYS > 0 ? Math.round((attendance.length / WORKSHOP_DAYS) * 100) : 0;
-          const chartPoints = SCHEDULE_DAYS.map((sd, i) => {
-            const done = attendance.some((a: any) => Number(a.session_day) === sd.day);
-            const sub = submissions.some((s: any) => s.assignment_id === `day-${sd.day}`);
-            const val = done && sub ? 100 : done ? 70 : sub ? 50 : (i < attendance.length ? 30 : 0);
-            return val;
+          const reachedDays = SCHEDULE_DAYS.filter(sd => {
+            const sdDate = new Date(`${sd.date}T00:00:00`);
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            return sdDate <= today;
           });
-          const rank = leaderboard.findIndex(s => s.you) + 1;
+          const lastReachedDayNum = reachedDays.length > 0 ? Math.max(...reachedDays.map(d => d.day)) : 1;
+
+          let cumulativeScore = 0;
+          const chartPoints = SCHEDULE_DAYS.map((sd) => {
+            const attended = attendance.some((a: any) => Number(a.session_day) === sd.day);
+            const submitted = submissions.some((s: any) => s.assignment_id === `a${sd.day}`);
+            
+            let dayScore = 0;
+            if (progressViewType === "combined") {
+              if (attended) dayScore += 50;
+              if (submitted) dayScore += 50;
+            } else if (progressViewType === "attendance") {
+              if (attended) dayScore += 100;
+            } else if (progressViewType === "assignments") {
+              if (submitted) dayScore += 100;
+            }
+            
+            cumulativeScore += dayScore;
+            return Math.min(100, Math.round((cumulativeScore / 700) * 100));
+          });
+
+          const completionPct = chartPoints[chartPoints.length - 1];
+          const attendancePct = WORKSHOP_DAYS > 0 ? Math.round((attendance.length / WORKSHOP_DAYS) * 100) : 0;
+          const myRecord = leaderboard.find(s => s.you);
+          const rank = (myRecord && myRecord.xp > 0) ? String(leaderboard.findIndex(s => s.you) + 1) : "-";
           const attendanceStatusLabel = attendancePct >= 80 ? "Excellent" : attendancePct >= 50 ? "Good" : "Needs Work";
           const attendanceStatusClass = attendancePct >= 50 ? "green" : "attention";
           const donutStrokeColor = completionPct === 0 ? "#9CA3AF" : "var(--db-accent-yellow)";
@@ -1203,11 +1264,51 @@ export default function DashboardPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: "20px", flex: 1, minWidth: 0 }}>
                   {/* Progress Chart Card */}
                   <div className="progress-chart-card" style={{ minHeight: "245px" }}>
-                    <div className="progress-chart-header">
+                    <div className="progress-chart-header" style={{ position: "relative" }}>
                       <span className="progress-chart-title">Workshop Progress</span>
-                      <span className="progress-chart-dropdown">
-                        Day-wise (All Days)
+                      <span
+                        className="progress-chart-dropdown"
+                        style={{ cursor: "pointer", position: "relative", userSelect: "none" }}
+                        onClick={() => setShowProgressDropdown(!showProgressDropdown)}
+                      >
+                        {progressViewType === "combined" ? "Day-wise (All Days)" : progressViewType === "attendance" ? "Day-wise (Attendance)" : "Day-wise (Assignments)"}
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        
+                        {showProgressDropdown && (
+                          <div style={{
+                            position: "absolute",
+                            top: "24px",
+                            right: 0,
+                            backgroundColor: "#fff",
+                            border: "1.5px solid rgba(0,0,0,0.06)",
+                            borderRadius: "10px",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                            padding: "6px 0",
+                            zIndex: 10,
+                            minWidth: "180px",
+                            display: "flex",
+                            flexDirection: "column"
+                          }}>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setProgressViewType("combined"); setShowProgressDropdown(false); }}
+                              style={{ padding: "8px 12px", border: "none", background: "none", textAlign: "left", fontSize: "11px", fontWeight: "750", cursor: "pointer", color: "var(--db-text-primary)" }}
+                            >
+                              Combined Progress
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setProgressViewType("attendance"); setShowProgressDropdown(false); }}
+                              style={{ padding: "8px 12px", border: "none", background: "none", textAlign: "left", fontSize: "11px", fontWeight: "750", cursor: "pointer", color: "var(--db-text-primary)" }}
+                            >
+                              Attendance Only
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setProgressViewType("assignments"); setShowProgressDropdown(false); }}
+                              style={{ padding: "8px 12px", border: "none", background: "none", textAlign: "left", fontSize: "11px", fontWeight: "750", cursor: "pointer", color: "var(--db-text-primary)" }}
+                            >
+                              Assignments Only
+                            </button>
+                          </div>
+                        )}
                       </span>
                     </div>
 
@@ -1223,7 +1324,7 @@ export default function DashboardPage() {
                       </div>
 
                       {/* Right: area chart */}
-                      <div className="progress-chart-area">
+                      <div className="progress-chart-area" style={{ position: "relative" }}>
                         {(() => {
                           const pts = chartPoints;
                           const W = 500;
@@ -1237,44 +1338,125 @@ export default function DashboardPage() {
                             x: pad.left + (i / Math.max(pts.length - 1, 1)) * innerW,
                             y: pad.top + (1 - v / 100) * innerH,
                           }));
-                          const linePath = scaled.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `C ${(scaled[i-1].x + p.x)/2} ${scaled[i-1].y}, ${(scaled[i-1].x + p.x)/2} ${p.y}, ${p.x} ${p.y}`)).join(" ");
-                          const areaPath = `${linePath} L ${scaled[scaled.length-1].x} ${pad.top + innerH} L ${pad.left} ${pad.top + innerH} Z`;
+
+                          const reachedPoints = scaled.slice(0, lastReachedDayNum);
+                          const upcomingPoints = scaled.slice(lastReachedDayNum - 1);
+
+                          const solidLinePath = reachedPoints.length > 0
+                            ? reachedPoints.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `C ${(reachedPoints[i-1].x + p.x)/2} ${reachedPoints[i-1].y}, ${(reachedPoints[i-1].x + p.x)/2} ${p.y}, ${p.x} ${p.y}`)).join(" ")
+                            : "";
+
+                          const dashedLinePath = upcomingPoints.length > 1
+                            ? upcomingPoints.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `C ${(upcomingPoints[i-1].x + p.x)/2} ${upcomingPoints[i-1].y}, ${(upcomingPoints[i-1].x + p.x)/2} ${p.y}, ${p.x} ${p.y}`)).join(" ")
+                            : "";
+
+                          const solidAreaPath = reachedPoints.length > 0
+                            ? `${solidLinePath} L ${reachedPoints[reachedPoints.length-1].x} ${pad.top + innerH} L ${pad.left} ${pad.top + innerH} Z`
+                            : "";
+
                           return (
-                            <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
-                              <defs>
-                                <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="0%" stopColor="#FFD446" stopOpacity="0.35"/>
-                                  <stop offset="100%" stopColor="#FFD446" stopOpacity="0.02"/>
-                                </linearGradient>
-                              </defs>
-                              {/* Y grid lines + labels */}
-                              {yLabels.map((label) => {
-                                const y = pad.top + (1 - label / 100) * innerH;
-                                return (
-                                  <g key={label}>
-                                    <line x1={pad.left} y1={y} x2={W - pad.right} y2={y} stroke="rgba(0,0,0,0.11)" strokeWidth="1"/>
-                                    <text x={pad.left - 8} y={y + 4} textAnchor="end" fontSize="11" fill="rgba(0,0,0,0.55)" fontWeight="600">{label}%</text>
-                                  </g>
-                                );
-                              })}
-                              {/* X labels */}
-                              {xLabels.map((label, i) => {
-                                const x = pad.left + (i / (xLabels.length - 1)) * innerW;
-                                return (
-                                  <text key={label} x={x} y={H - 6} textAnchor="middle" fontSize="11" fill="rgba(0,0,0,0.55)" fontWeight="600">{label}</text>
-                                );
-                              })}
-                              {/* Area fill */}
-                              <path d={areaPath} fill="url(#areaGrad)"/>
-                              {/* Line Glow */}
-                              <path d={linePath} fill="none" stroke="#FFD446" strokeWidth="7" strokeOpacity="0.22" strokeLinecap="round" strokeLinejoin="round"/>
-                              {/* Line Main */}
-                              <path d={linePath} fill="none" stroke="#FFD446" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
-                              {/* Dots */}
-                              {scaled.map((p, i) => (
-                                pts[i] > 0 && <circle key={i} cx={p.x} cy={p.y} r="5" fill="#FFD446" stroke="#fff" strokeWidth="2"/>
-                              ))}
-                            </svg>
+                            <>
+                              <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
+                                <defs>
+                                  <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#FFD446" stopOpacity="0.35"/>
+                                    <stop offset="100%" stopColor="#FFD446" stopOpacity="0.02"/>
+                                  </linearGradient>
+                                </defs>
+                                {/* Y grid lines + labels */}
+                                {yLabels.map((label) => {
+                                  const y = pad.top + (1 - label / 100) * innerH;
+                                  return (
+                                    <g key={label}>
+                                      <line x1={pad.left} y1={y} x2={W - pad.right} y2={y} stroke="rgba(0,0,0,0.11)" strokeWidth="1"/>
+                                      <text x={pad.left - 8} y={y + 4} textAnchor="end" fontSize="11" fill="rgba(0,0,0,0.55)" fontWeight="600">{label}%</text>
+                                    </g>
+                                  );
+                                })}
+                                {/* X labels */}
+                                {xLabels.map((label, i) => {
+                                  const x = pad.left + (i / (xLabels.length - 1)) * innerW;
+                                  return (
+                                    <text key={label} x={x} y={H - 6} textAnchor="middle" fontSize="11" fill="rgba(0,0,0,0.55)" fontWeight="600">{label}</text>
+                                  );
+                                })}
+                                {/* Area fill */}
+                                {solidAreaPath && <path d={solidAreaPath} fill="url(#areaGrad)"/>}
+                                {/* Solid Line (Reached) */}
+                                {solidLinePath && (
+                                  <>
+                                    <path d={solidLinePath} fill="none" stroke="#FFD446" strokeWidth="7" strokeOpacity="0.22" strokeLinecap="round" strokeLinejoin="round"/>
+                                    <path d={solidLinePath} fill="none" stroke="#FFD446" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </>
+                                )}
+                                {/* Dashed Line (Upcoming) */}
+                                {dashedLinePath && (
+                                  <>
+                                    <path d={dashedLinePath} fill="none" stroke="#FFD446" strokeWidth="3.5" strokeDasharray="5,5" strokeOpacity="0.6" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </>
+                                )}
+                                {/* Dots */}
+                                {scaled.map((p, i) => {
+                                  const isUpcoming = i >= lastReachedDayNum;
+                                  const sd = SCHEDULE_DAYS[i];
+                                  const attended = attendance.some((a: any) => Number(a.session_day) === sd.day);
+                                  const submitted = submissions.some((s: any) => s.assignment_id === `a${sd.day}`);
+
+                                  return (
+                                    <circle
+                                      key={i}
+                                      cx={p.x}
+                                      cy={p.y}
+                                      r={hoveredChartPoint?.day === sd.day ? "7" : "5"}
+                                      fill={isUpcoming ? "#fff" : "#FFD446"}
+                                      stroke="#FFD446"
+                                      strokeWidth="2.5"
+                                      style={{ cursor: "pointer", transition: "all 0.15s" }}
+                                      onMouseEnter={() => setHoveredChartPoint({
+                                        x: p.x,
+                                        y: p.y,
+                                        day: sd.day,
+                                        title: sd.title,
+                                        val: pts[i],
+                                        attended,
+                                        submitted
+                                      })}
+                                      onMouseLeave={() => setHoveredChartPoint(null)}
+                                    />
+                                  );
+                                })}
+                              </svg>
+
+                              {hoveredChartPoint && (
+                                <div style={{
+                                  position: "absolute",
+                                  left: `${(hoveredChartPoint.x / W) * 100}%`,
+                                  top: `${(hoveredChartPoint.y / H) * 100 - 15}%`,
+                                  transform: "translate(-50%, -100%)",
+                                  backgroundColor: "rgba(15, 23, 42, 0.95)",
+                                  backdropFilter: "blur(6px)",
+                                  border: "1.5px solid rgba(255, 212, 70, 0.4)",
+                                  borderRadius: "10px",
+                                  padding: "10px 14px",
+                                  color: "#fff",
+                                  fontSize: "11px",
+                                  zIndex: 100,
+                                  whiteSpace: "nowrap",
+                                  boxShadow: "0 6px 20px rgba(0,0,0,0.25)",
+                                  pointerEvents: "none",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: "3px",
+                                  textAlign: "left"
+                                }}>
+                                  <div style={{ fontWeight: "900", color: "#FFD446" }}>Day {hoveredChartPoint.day}</div>
+                                  <div style={{ fontSize: "10px", opacity: 0.85, marginBottom: "3px", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis" }}>{hoveredChartPoint.title}</div>
+                                  <div>Progress: <strong style={{ color: "#FFD446" }}>{hoveredChartPoint.val}%</strong></div>
+                                  <div>Attendance: <strong>{hoveredChartPoint.attended ? "✓ Attended" : "✕ Absent"}</strong></div>
+                                  <div>Assignment: <strong>{hoveredChartPoint.submitted ? "✓ Submitted" : "✕ Missing"}</strong></div>
+                                </div>
+                              )}
+                            </>
                           );
                         })()}
                       </div>
@@ -1792,9 +1974,11 @@ export default function DashboardPage() {
                     <div className="rank-icon">🏆</div>
                     <div className="rank-info">
                       <span className="rank-label">Your Rank</span>
-                      <div className="rank-value">#{rank || 1}</div>
-                      {peers.length > 1 && (
-                        <div className="rank-top-badge">Top {Math.ceil(((rank || 1) / Math.max(peers.length, 1)) * 100)}%</div>
+                      <div className="rank-value">{rank === "-" ? "-" : `#${rank}`}</div>
+                      {rank !== "-" ? (
+                        <div className="rank-top-badge">Top {Math.ceil((Number(rank) / Math.max(peers.length, 1)) * 100)}%</div>
+                      ) : (
+                        <div className="rank-top-badge" style={{ background: "rgba(0,0,0,0.06)", color: "var(--db-text-muted)" }}>Not Ranked</div>
                       )}
                       <span className="rank-sub">of {Math.max(peers.length, 1)} participants</span>
                       <span className="rank-link" onClick={() => setCurrentTab("leaderboard")}>
@@ -1809,13 +1993,13 @@ export default function DashboardPage() {
               <div className="workshop-journey-card">
                 <div className="journey-card-header">
                   <span className="journey-card-label">Workshop Journey</span>
-                  <span className="journey-card-day-badge">Day {Math.min(attendance.length + 1, WORKSHOP_DAYS)} of {WORKSHOP_DAYS}</span>
+                  <span className="journey-card-day-badge">Day {lastReachedDayNum} of {WORKSHOP_DAYS}</span>
                 </div>
                 <div className="journey-timeline-row">
                   {SCHEDULE_DAYS.map((sd, idx) => {
                     const isCompleted = attendance.some((a: any) => Number(a.session_day) === sd.day);
-                    const isToday = sd.day === Math.min(attendance.length + 1, WORKSHOP_DAYS) && !isCompleted;
-                    const status = isCompleted ? "completed" : isToday ? "today" : "upcoming";
+                    const isToday = sd.day === lastReachedDayNum;
+                    const status = isCompleted ? "completed" : isToday ? "today" : sd.day < lastReachedDayNum ? "locked" : "upcoming";
                     const isLast = idx === SCHEDULE_DAYS.length - 1;
                     const prevCompleted = idx > 0 && attendance.some((a: any) => Number(a.session_day) === SCHEDULE_DAYS[idx - 1].day);
                     return (
@@ -1829,7 +2013,7 @@ export default function DashboardPage() {
                           </div>
                           <span className={`journey-day-label${isToday ? " today-label" : ""}`}>Day {sd.day}</span>
                           <span className="journey-day-sublabel">
-                            {isCompleted ? "Completed" : isToday ? "● Today" : "Upcoming"}
+                            {isCompleted ? "Completed" : isToday ? "● Today" : sd.day < lastReachedDayNum ? "Closed" : "Upcoming"}
                           </span>
                         </div>
                       </Fragment>
@@ -1874,9 +2058,15 @@ export default function DashboardPage() {
                       </div>
                     </div>
 
-                    <div className="modern-card schedule-card-body" style={{ padding: "20px 24px", minHeight: "auto" }}>
+                    <Link
+                      href={`/dashboard/schedule/day-${session.day}`}
+                      className="modern-card schedule-card-body"
+                      style={{ padding: "20px 24px", minHeight: "auto", display: "block", textDecoration: "none" }}
+                    >
                       <div className="schedule-card-head">
-                        <span className="schedule-day-label" style={{ fontWeight: "900", color: "var(--text-secondary)" }}>Day {session.day}</span>
+                        <span className="schedule-day-label" style={{ fontWeight: "900", color: "var(--text-secondary)" }}>
+                          {session.day === 1 ? "Day 1 — GETTING STARTED" : session.day === 2 ? "Day 2 — GETTING FAMILIAR TO GITHUB" : `Day ${session.day}`}
+                        </span>
                         <span className={`schedule-tag schedule-tag--${status.toLowerCase()}`}>
                           {status === "COMPLETED" && (
                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1904,7 +2094,7 @@ export default function DashboardPage() {
                           {session.time}
                         </span>
                       </div>
-                    </div>
+                    </Link>
                   </div>
                 );
               })}
@@ -2971,20 +3161,13 @@ export default function DashboardPage() {
               </div>
 
               <div className="badges-section-grid">
-                {[
-                  { id: "first_attendance", emoji: "🎯", color: "linear-gradient(135deg, #FFD446, #FFA800)", name: "First Check-In", desc: "Marked attendance for the first time" },
-                  { id: "first_github_repo", emoji: "📂", color: "linear-gradient(135deg, #10B981, #059669)", name: "First Repo Submit", desc: "Submitted your first GitHub repository" },
-                  { id: "first_assignment", emoji: "📝", color: "linear-gradient(135deg, #3B82F6, #2563EB)", name: "First HW Done", desc: "Submitted your first assignment" },
-                  { id: "perfect_attendance_badge", emoji: "🔥", color: "linear-gradient(135deg, #EC4899, #D946EF)", name: "Perfect Attendance", desc: "Attended all 7 days of the workshop" },
-                  { id: "assignment_master_badge", emoji: "💻", color: "linear-gradient(135deg, #F59E0B, #D97706)", name: "Assignment Master", desc: "Submitted all workshop assignments" },
-                  { id: "workshop_warrior_badge", emoji: "🚀", color: "linear-gradient(135deg, #8B5CF6, #7C3AED)", name: "Workshop Warrior", desc: "Completed all daily tasks every day" },
-                  { id: "git_github_master_badge", emoji: "🎓", color: "linear-gradient(135deg, #EF4444, #DC2626)", name: "Git & GitHub Master", desc: "Completed the entire workshop requirements" },
-                ].map((badge) => {
+                {BADGES_METADATA.map((badge) => {
                   const isUnlocked = unlockedBadges.includes(badge.id);
                   return (
                     <div
                       key={badge.id}
-                      className={`badge-item-box${!isUnlocked ? " locked" : ""}`}
+                      className={`badge-item-box ${isUnlocked ? "unlocked" : "locked"}`}
+                      title={`Unlock Criteria: ${badge.condition}`}
                       onClick={() => {
                         if (isUnlocked) {
                           setUnlockedBadgeModal({
@@ -3001,7 +3184,12 @@ export default function DashboardPage() {
                         {badge.emoji}
                       </div>
                       <span className="badge-item-name">{badge.name}</span>
-                      <span className="badge-item-desc">{isUnlocked ? "✓ Unlocked" : "🔒 Locked"}</span>
+                      <span className="badge-item-desc" style={{ fontWeight: isUnlocked ? "800" : "600", color: isUnlocked ? "#10B981" : "#94A3B8" }}>
+                        {isUnlocked ? "✓ Unlocked" : "🔒 Locked"}
+                      </span>
+                      <span style={{ fontSize: "8.5px", color: "#64748B", marginTop: "4px", lineHeight: "1.2" }}>
+                        {badge.condition}
+                      </span>
                     </div>
                   );
                 })}

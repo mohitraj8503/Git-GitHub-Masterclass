@@ -17,6 +17,11 @@ export const XP_RULES: Record<string, number> = {
    workshop_feedback: 15,
    fill_feedback: 10, // alias
    daily_completion_bonus: 50,
+   profile_email: 10,
+   profile_photo: 10,
+   profile_bio: 10,
+   profile_github: 20,
+   profile_linkedin: 20,
 };
 
 export const STREAK_BONUSES: Record<number, number> = {
@@ -256,5 +261,54 @@ async function unlockBadge(enroll: string, badgeId: string, xpBonus: number): Pr
     return !error;
   } catch {
     return false;
+  }
+}
+
+export async function syncProfileCompletionXp(enrollmentNumber: string) {
+  if (!supabaseAdmin) return;
+  const enroll = enrollmentNumber.trim().toUpperCase();
+
+  try {
+    const regId = await resolveRegId(enroll);
+    if (!regId) return;
+
+    const { data: reg } = await supabaseAdmin
+      .from("registrations")
+      .select("email")
+      .eq("id", regId)
+      .maybeSingle();
+
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("bio, github_username, linkedin_url, avatar_url")
+      .eq("id", regId)
+      .maybeSingle();
+
+    // 1. Email present (+10 XP)
+    if (reg?.email) {
+      await awardXp(enroll, "profile_email", regId);
+    }
+
+    // 2. Photo present (+10 XP)
+    if (profile?.avatar_url && profile.avatar_url.trim() !== "") {
+      await awardXp(enroll, "profile_photo", regId);
+    }
+
+    // 3. Bio present (+10 XP)
+    if (profile?.bio && profile.bio.trim() !== "") {
+      await awardXp(enroll, "profile_bio", regId);
+    }
+
+    // 4. GitHub Username present (+20 XP)
+    if (profile?.github_username && profile.github_username.trim() !== "") {
+      await awardXp(enroll, "profile_github", regId);
+    }
+
+    // 5. LinkedIn present (+20 XP)
+    if (profile?.linkedin_url && profile.linkedin_url.trim() !== "") {
+      await awardXp(enroll, "profile_linkedin", regId);
+    }
+  } catch (err) {
+    console.error("Failed to sync profile completion XP:", err);
   }
 }

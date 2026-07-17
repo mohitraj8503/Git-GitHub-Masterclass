@@ -36,3 +36,7 @@ Thumbs.db
 .agents
 .verification
 .tempmediaStorage
+
+# zip 
+.zip
+.tar

@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "chmod -R 755 app 2>/dev/null || true; next build",
     "start": "next start",
     "lint": "next lint"
   },

@@ -89,6 +89,13 @@ export async function POST(request: Request) {
         const xpResult = { success: true, message: "XP will be awarded after review/grading." };
         let isEarly = false;
 
+        if (repo_url && String(repo_url).toLowerCase().includes("github.com")) {
+          await completeTaskForEnrollment(rawStudentId, "submit_github_repo", {
+            source: "assignment-submission-github",
+            metadata: { assignment_id, repo_url }
+          });
+        }
+
         const taskResult = await completeTaskForEnrollment(rawStudentId, "complete_assignment", {
           source: "assignment-submission",
           metadata: { assignment_id },
@@ -116,6 +123,13 @@ export async function POST(request: Request) {
     const entry = { id: "s-" + Date.now().toString(), ...submissionData, marks_obtained: null, mentor_feedback: null };
     submissions.push(entry);
     fs.writeFileSync(FILE_PATH, JSON.stringify(submissions, null, 2), "utf8");
+
+    if (repo_url && String(repo_url).toLowerCase().includes("github.com")) {
+      await completeTaskForEnrollment(student_id, "submit_github_repo", {
+        source: "assignment-submission-github",
+        metadata: { assignment_id, repo_url }
+      });
+    }
 
     const taskResult = await completeTaskForEnrollment(student_id, "complete_assignment", {
       source: "assignment-submission",

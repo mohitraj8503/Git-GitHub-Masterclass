@@ -19,9 +19,10 @@ export async function completeTaskForEnrollment(
   options?: { source?: string; metadata?: Record<string, unknown> }
 ) {
   const normalizedEnrollment = normalizeEnrollmentNumber(enrollmentNumber);
-  const xpToAward = TASK_XP_REWARDS[taskId];
+  const targetTaskId = taskId === "download_slides" ? "download_resources" : taskId;
+  const xpToAward = TASK_XP_REWARDS[targetTaskId];
 
-  if (!normalizedEnrollment || !taskId || xpToAward === undefined) {
+  if (!normalizedEnrollment || !targetTaskId || xpToAward === undefined) {
     return {
       ok: false,
       success: false,
@@ -52,7 +53,7 @@ export async function completeTaskForEnrollment(
       .from("task_completions")
       .select("id")
       .ilike("enrollment_number", normalizedEnrollment)
-      .eq("task_id", taskId)
+      .eq("task_id", targetTaskId)
       .eq("completed_date", completedDate)
       .maybeSingle();
 
@@ -82,7 +83,7 @@ export async function completeTaskForEnrollment(
 
     const { error: insertErr } = await supabaseAdmin.from("task_completions").insert({
       enrollment_number: normalizedEnrollment,
-      task_id: taskId,
+      task_id: targetTaskId,
       completed_date: completedDate,
       source: options?.source || "event",
       metadata: options?.metadata ? JSON.stringify(options.metadata) : null,
@@ -101,7 +102,7 @@ export async function completeTaskForEnrollment(
       };
     }
 
-    const xpResult = await awardXp(enrollmentNumber, taskId, options?.metadata ? JSON.stringify(options.metadata) : undefined);
+    const xpResult = await awardXp(enrollmentNumber, targetTaskId, options?.metadata ? JSON.stringify(options.metadata) : undefined);
 
     if (!xpResult.success) {
       console.error("XP update failed:", xpResult.error);
@@ -109,7 +110,7 @@ export async function completeTaskForEnrollment(
         .from("task_completions")
         .delete()
         .ilike("enrollment_number", normalizedEnrollment)
-        .eq("task_id", taskId)
+        .eq("task_id", targetTaskId)
         .eq("completed_date", completedDate);
       return {
         ok: false,
