@@ -1640,92 +1640,103 @@ export default function DashboardPage() {
                   {/* Right: Upcoming Workshop */}
                   {(() => {
                     const now = new Date(nowTs);
-                    // Find the first session that has not ended yet (session end is 13:30)
+                    // Find the first session that has not ended yet
                     let targetDay = SCHEDULE_DAYS.find(sd => {
-                      const sessionEnd = new Date(`${sd.date}T13:30:00`).getTime();
+                      const endTime = sd.day >= 3 ? "20:30:00" : "13:30:00";
+                      const sessionEnd = new Date(`${sd.date}T${endTime}`).getTime();
                       return nowTs <= sessionEnd;
                     });
                     if (!targetDay) {
                       targetDay = SCHEDULE_DAYS[SCHEDULE_DAYS.length - 1]; // Fallback to last day
                     }
 
-                    const targetTime = new Date(`${targetDay.date}T12:30:00`).getTime();
-                    const diffMs = targetTime - nowTs;
-                     let hours = 0;
-                     let mins = 0;
-                     let secs = 0;
-                     if (diffMs > 0) {
-                       hours = Math.floor(diffMs / (1000 * 60 * 60));
-                       mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                       secs = Math.floor((diffMs % (1000 * 60)) / 1000);
-                     }
-                     const padZero = (n: number) => String(n).padStart(2, "0");
-                     const formatDate = (dateStr: string) => {
-                       const d = new Date(`${dateStr}T00:00:00`);
-                       const options: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", year: "numeric" };
-                       return d.toLocaleDateString("en-GB", options);
-                     };
- 
-                     return (
-                       <div className="event-card">
-                         <div>
-                           <span className="event-card-badge" style={{ color: "var(--db-accent-orange)", fontWeight: 800 }}>UPCOMING WORKSHOP - DAY {targetDay.day}</span>
-                           <h3 className="event-card-title">Git &amp; GitHub Masterclass</h3>
-                         </div>
- 
-                         <div className="event-card-details">
-                           <div className="event-card-detail">
-                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                             <span>{formatDate(targetDay.date)}</span>
-                           </div>
-                           <div className="event-card-detail">
-                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                             <span>12:30 PM – 1:30 PM</span>
-                           </div>
-                           <div className="event-card-detail">
-                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                             <span>Seminar Hall, AJU Campus</span>
-                           </div>
-                         </div>
- 
-                         {/* Countdown timer to fill height cleanly */}
-                         <div className="event-countdown-wrapper" style={{
-                           background: "rgba(255, 255, 255, 0.45)",
-                           border: "1px solid rgba(255, 255, 255, 0.6)",
-                           borderRadius: "16px",
-                           padding: "14px 18px",
-                           display: "flex",
-                           flexDirection: "column",
-                           gap: "8px",
-                           marginTop: "4px",
-                           marginBottom: "4px"
-                         }}>
-                           <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--db-text-muted)", letterSpacing: "1px", textTransform: "uppercase" }}>STARTS IN</span>
-                           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                             <div style={{ textAlign: "center" }}>
-                               <div style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 12px", fontSize: "20px", fontWeight: "900", color: "var(--db-text-primary)", minWidth: "28px", lineHeight: 1 }}>
-                                 {padZero(hours)}
-                               </div>
-                               <div style={{ fontSize: "9px", fontWeight: "700", color: "var(--db-text-muted)", marginTop: "4px", textTransform: "uppercase" }}>Hours</div>
-                             </div>
-                             <span style={{ color: "rgba(0,0,0,0.2)", fontWeight: "900", fontSize: "18px", marginTop: "-14px" }}>:</span>
-                             <div style={{ textAlign: "center" }}>
-                               <div style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 12px", fontSize: "20px", fontWeight: "900", color: "var(--db-text-primary)", minWidth: "28px", lineHeight: 1 }}>
-                                 {padZero(mins)}
-                               </div>
-                               <div style={{ fontSize: "9px", fontWeight: "700", color: "var(--db-text-muted)", marginTop: "4px", textTransform: "uppercase" }}>Min</div>
-                             </div>
-                             <span style={{ color: "rgba(0,0,0,0.2)", fontWeight: "900", fontSize: "18px", marginTop: "-14px" }}>:</span>
-                             <div style={{ textAlign: "center" }}>
-                               <div style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 12px", fontSize: "20px", fontWeight: "900", color: "var(--db-text-primary)", minWidth: "28px", lineHeight: 1 }}>
-                                 {padZero(secs)}
-                               </div>
-                               <div style={{ fontSize: "9px", fontWeight: "700", color: "var(--db-text-muted)", marginTop: "4px", textTransform: "uppercase" }}>Sec</div>
-                             </div>
-                           </div>
-                         </div>
+                    const startTime = targetDay.day >= 3 ? "19:30:00" : "12:30:00";
+                    const targetTime = new Date(`${targetDay.date}T${startTime}`).getTime();
+                    const endTime = targetDay.day >= 3 ? "20:30:00" : "13:30:00";
+                    const sessionEnd = new Date(`${targetDay.date}T${endTime}`).getTime();
 
-                        <div className="event-meta-row" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", flexWrap: "wrap", marginBottom: "4px" }}>
+                    const diffMs = targetTime - nowTs;
+                    let hours = 0;
+                    let mins = 0;
+                    let secs = 0;
+                    if (diffMs > 0) {
+                      hours = Math.floor(diffMs / (1000 * 60 * 60));
+                      mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                      secs = Math.floor((diffMs % (1000 * 60)) / 1000);
+                    }
+                    const padZero = (n: number) => String(n).padStart(2, "0");
+                    const formatDate = (dateStr: string) => {
+                      const d = new Date(`${dateStr}T00:00:00`);
+                      const options: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", year: "numeric" };
+                      return d.toLocaleDateString("en-GB", options);
+                    };
+
+                    const isToday = now.toDateString() === new Date(targetDay.date).toDateString();
+                    const isLive = isToday && nowTs >= targetTime && nowTs <= sessionEnd;
+
+                    return (
+                      <div className="event-card">
+                        <div>
+                          <span className="event-card-badge" style={{ color: "#16a34a", fontWeight: 800, background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.2)", padding: "4px 10px", borderRadius: "20px" }}>UPCOMING SESSION</span>
+                          <h3 className="event-card-title" style={{ margin: "8px 0 2px 0" }}>Git &amp; GitHub Masterclass</h3>
+                          <span style={{ fontSize: "12px", fontWeight: "750", color: "var(--db-text-muted)" }}>Day {targetDay.day}</span>
+                        </div>
+
+                        <div className="event-card-details" style={{ margin: "10px 0" }}>
+                          <div className="event-card-detail">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            <span>{formatDate(targetDay.date)}</span>
+                          </div>
+                          <div className="event-card-detail">
+                            <span style={{ fontSize: "14px", marginRight: "4px" }}>🕢</span>
+                            <span>{targetDay.time}</span>
+                          </div>
+                          <div className="event-card-detail">
+                            <span style={{ fontSize: "14px", marginRight: "4px" }}>📍</span>
+                            <span>Online via Google Meet</span>
+                          </div>
+                        </div>
+
+                        {/* Countdown timer to fill height cleanly */}
+                        {diffMs > 0 ? (
+                          <div className="event-countdown-wrapper" style={{
+                            background: "rgba(255, 255, 255, 0.45)",
+                            border: "1px solid rgba(255, 255, 255, 0.6)",
+                            borderRadius: "16px",
+                            padding: "14px 18px",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "8px",
+                            marginTop: "4px",
+                            marginBottom: "4px"
+                          }}>
+                            <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--db-text-muted)", letterSpacing: "1px", textTransform: "uppercase" }}>STARTS IN</span>
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                              <div style={{ textAlign: "center" }}>
+                                <div style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 12px", fontSize: "20px", fontWeight: "900", color: "var(--db-text-primary)", minWidth: "28px", lineHeight: 1 }}>
+                                  {padZero(hours)}
+                                </div>
+                                <div style={{ fontSize: "9px", fontWeight: "700", color: "var(--db-text-muted)", marginTop: "4px", textTransform: "uppercase" }}>Hours</div>
+                              </div>
+                              <span style={{ color: "rgba(0,0,0,0.2)", fontWeight: "900", fontSize: "18px", marginTop: "-14px" }}>:</span>
+                              <div style={{ textAlign: "center" }}>
+                                <div style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 12px", fontSize: "20px", fontWeight: "900", color: "var(--db-text-primary)", minWidth: "28px", lineHeight: 1 }}>
+                                  {padZero(mins)}
+                                </div>
+                                <div style={{ fontSize: "9px", fontWeight: "700", color: "var(--db-text-muted)", marginTop: "4px", textTransform: "uppercase" }}>Min</div>
+                              </div>
+                              <span style={{ color: "rgba(0,0,0,0.2)", fontWeight: "900", fontSize: "18px", marginTop: "-14px" }}>:</span>
+                              <div style={{ textAlign: "center" }}>
+                                <div style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "8px", padding: "6px 12px", fontSize: "20px", fontWeight: "900", color: "var(--db-text-primary)", minWidth: "28px", lineHeight: 1 }}>
+                                  {padZero(secs)}
+                                </div>
+                                <div style={{ fontSize: "9px", fontWeight: "700", color: "var(--db-text-muted)", marginTop: "4px", textTransform: "uppercase" }}>Sec</div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <div className="event-meta-row" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", flexWrap: "wrap", marginBottom: "4px", marginTop: "4px" }}>
                           <span style={{
                             display: "inline-block",
                             fontSize: "11px",
@@ -1736,13 +1747,48 @@ export default function DashboardPage() {
                             padding: "4px 12px",
                             borderRadius: "20px"
                           }}>🚫 Registrations Closed</span>
-                          <div className="event-card-offline-badge" style={{ margin: 0, padding: "4px 12px" }}>Offline Workshop</div>
+                          <span style={{
+                            display: "inline-block",
+                            fontSize: "11px",
+                            fontWeight: "750",
+                            background: "rgba(34, 197, 94, 0.1)",
+                            color: "#16a34a",
+                            border: "1px solid rgba(34, 197, 94, 0.2)",
+                            padding: "4px 12px",
+                            borderRadius: "20px"
+                          }}>🟢 Online Live Session</span>
                         </div>
 
-                        <button className="event-card-btn" onClick={() => setCurrentTab("schedule")}>
-                          <span>View Schedule</span>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-                        </button>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginBottom: "8px", fontSize: "13px", fontWeight: 700 }}>
+                          <span style={{ color: "var(--db-text-muted)" }}>Status:</span>
+                          {isLive ? (
+                            <span style={{ color: "#22c55e", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                              <span className="live-dot-pulse"></span>
+                              🟢 LIVE TODAY
+                            </span>
+                          ) : (
+                            <span style={{ color: "#eab308" }}>🟡 Upcoming Session</span>
+                          )}
+                        </div>
+
+                        <a
+                          href="https://meet.google.com/byu-nubj-gfy"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`event-card-btn ${isLive ? "live-glow-button" : ""}`}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "8px",
+                            textDecoration: "none",
+                            width: "100%",
+                            boxSizing: "border-box"
+                          }}
+                        >
+                          <span>🎥 Join Google Meet</span>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "16px", height: "16px" }}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                        </a>
                       </div>
                     );
                   })()}

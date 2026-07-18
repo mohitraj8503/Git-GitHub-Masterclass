@@ -14,5 +14,18 @@
     "due_date": "2026-07-12T17:43:26.251Z",
     "max_marks": 15,
     "created_at": "2026-07-08T17:43:26.251Z"
+  },
+  {
+    "id": "a3",
+    "title": "Day 3 - Git CLI Basics & First Commits",
+    "description": "Submit a GitHub repository you created today. Ensure it contains your local changes initialized, staged, and committed using the Git CLI.",
+    "due_date": "2026-07-20T23:59:59.000Z",
+    "max_marks": 20,
+    "submission_requirements": {
+      "live_url": false,
+      "github_link": true,
+      "attachment": false
+    },
+    "created_at": "2026-07-18T19:08:49.251Z"
   }
 ]

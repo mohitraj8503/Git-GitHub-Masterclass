@@ -12,11 +12,18 @@ const SCHEDULE_VENUE = "Computer Lab 2, Room 320, Block Baudhayana";
 
 export default function DaySchedulePage({ params }: PageProps) {
   const { day } = use(params);
+  const [githubUsername, setGithubUsername] = React.useState<string>("mohitraj8503");
 
   // Clear dashboard dark theme classes on mount
   useEffect(() => {
     document.body.classList.remove("dashboard-body-active");
     document.documentElement.classList.remove("dashboard-body-active");
+
+    const user = JSON.parse(localStorage.getItem("user_registration") || "null");
+    const username = user?.githubUsername || user?.github_username || "";
+    if (username) {
+      setGithubUsername(username);
+    }
   }, []);
 
   const dayNumber = parseInt(day.replace("day-", ""), 10);
@@ -754,23 +761,23 @@ export default function DaySchedulePage({ params }: PageProps) {
             <div>
               {/* Intro Line */}
               <p className="day-guide-intro">
-                Before today's session, make sure you understand the core commands of staging and committing changes in Git.
+                Access the essential resources, documentation, interactive tools, and repositories for today's hands-on Git CLI session.
               </p>
 
               {/* Day 3 Grid */}
               <div className="day-guide-grid">
-                {/* Step 1: Initialize and Stage Changes */}
+                {/* Resource 1: Git Documentation */}
                 <section className="day-guide-card">
                   <div className="day-guide-card-header">
                     <div className="day-guide-card-icon">
                       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                       </svg>
                     </div>
                     <div className="day-guide-card-title-section">
-                      <h2 className="day-guide-card-title">1. Local Repository: init & add</h2>
+                      <h2 className="day-guide-card-title">Git Documentation</h2>
                       <p className="day-guide-card-desc">
-                        Initialize a new local Git repository in your project directory and stage files to track changes.
+                        Official documentation for every Git command. Use this as your primary reference guide.
                       </p>
                     </div>
                   </div>
@@ -783,7 +790,7 @@ export default function DaySchedulePage({ params }: PageProps) {
                       rel="noopener noreferrer"
                       className="day-guide-btn"
                     >
-                      Official Git Reference
+                      Open Documentation
                       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                       </svg>
@@ -792,27 +799,28 @@ export default function DaySchedulePage({ params }: PageProps) {
 
                   {/* Sub Guide */}
                   <div className="day-guide-steps">
-                    <h3 className="day-guide-steps-title">Quick Setup Instructions</h3>
+                    <h3 className="day-guide-steps-title">Quick Instructions</h3>
                     <ol className="day-guide-steps-list">
-                      <li>Open your terminal in your project directory and run <code>git init</code> to initialize a local repository.</li>
-                      <li>Create or modify files in your directory, then run <code>git status</code> to see untracked or modified files.</li>
-                      <li>Run <code>git add &lt;filename&gt;</code> to stage specific files, or <code>git add .</code> to stage all changes in the directory.</li>
+                      <li>Click <strong>Open Documentation</strong>.</li>
+                      <li>Search any Git command (e.g., <code>git status</code>).</li>
+                      <li>Read examples and options.</li>
+                      <li>Use it whenever you're stuck.</li>
                     </ol>
                   </div>
                 </section>
 
-                {/* Step 2: Commit and Log */}
+                {/* Resource 2: Git Cheat Sheet */}
                 <section className="day-guide-card">
                   <div className="day-guide-card-header">
                     <div className="day-guide-card-icon">
                       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                     </div>
                     <div className="day-guide-card-title-section">
-                      <h2 className="day-guide-card-title">2. Save Progress: commit & log</h2>
+                      <h2 className="day-guide-card-title">Git Cheat Sheet</h2>
                       <p className="day-guide-card-desc">
-                        Permanently record staged changes in your repository history and inspect your chronological commit log.
+                        One-page PDF containing all beginner Git commands. Keep this open during hands-on exercises.
                       </p>
                     </div>
                   </div>
@@ -820,12 +828,98 @@ export default function DaySchedulePage({ params }: PageProps) {
                   {/* Primary Button */}
                   <div style={{ margin: "20px 0" }}>
                     <a
-                      href="https://docs.github.com/en/desktop/developing-and-collaborating-with-git-in-github-desktop/keeping-your-local-repository-up-to-date/about-commits"
+                      href="https://education.github.com/git-cheat-sheet-education.pdf"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="day-guide-btn"
                     >
-                      GitHub Commits Guide
+                      Download Cheat Sheet
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                    </a>
+                  </div>
+
+                  {/* Sub Guide */}
+                  <div className="day-guide-steps">
+                    <h3 className="day-guide-steps-title">Quick Instructions</h3>
+                    <ol className="day-guide-steps-list">
+                      <li>Download the PDF cheat sheet.</li>
+                      <li>Keep it open in a side window during practice.</li>
+                      <li>Refer to commands while typing in your terminal.</li>
+                    </ol>
+                  </div>
+                </section>
+
+                {/* Resource 3: Interactive Git Practice */}
+                <section className="day-guide-card">
+                  <div className="day-guide-card-header">
+                    <div className="day-guide-card-icon">
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="day-guide-card-title-section">
+                      <h2 className="day-guide-card-title">Interactive Git Practice</h2>
+                      <p className="day-guide-card-desc">
+                        Learn Git visually using interactive animations. Best for visual understanding of branches and commits.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Primary Button */}
+                  <div style={{ margin: "20px 0" }}>
+                    <a
+                      href="https://learngitbranching.js.org/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="day-guide-btn"
+                    >
+                      Start Practice
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                      </svg>
+                    </a>
+                  </div>
+
+                  {/* Sub Guide */}
+                  <div className="day-guide-steps">
+                    <h3 className="day-guide-steps-title">Quick Instructions</h3>
+                    <ol className="day-guide-steps-list">
+                      <li>Open the website in your browser.</li>
+                      <li>Start from the Introduction levels.</li>
+                      <li>Complete the first few exercises.</li>
+                      <li>Observe how commits and branches work visually.</li>
+                    </ol>
+                  </div>
+                </section>
+
+                {/* Resource 4: Today's Demo Repository */}
+                <section className="day-guide-card">
+                  <div className="day-guide-card-header">
+                    <div className="day-guide-card-icon">
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                      </svg>
+                    </div>
+                    <div className="day-guide-card-title-section">
+                      <h2 className="day-guide-card-title">Today's Demo Repository</h2>
+                      <p className="day-guide-card-desc">
+                        Clone this repository and follow along with the instructor's live exercises during class.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Primary Button */}
+                  <div style={{ margin: "20px 0" }}>
+                    <a
+                      href={`https://github.com/${githubUsername}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="day-guide-btn"
+                    >
+                      Open Repository
                       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                       </svg>
@@ -834,11 +928,53 @@ export default function DaySchedulePage({ params }: PageProps) {
 
                   {/* Sub Guide */}
                   <div className="day-guide-steps">
-                    <h3 className="day-guide-steps-title">Staging and Logging Tips</h3>
+                    <h3 className="day-guide-steps-title">Quick Instructions</h3>
                     <ol className="day-guide-steps-list">
-                      <li>Run <code>git commit -m "Your descriptive commit message"</code> to create a new revision checkpoint.</li>
-                      <li>Ensure your commit messages are concise and explain what changes were introduced.</li>
-                      <li>Run <code>git log</code> to view the commit history, list authors, hashes, and timestamps.</li>
+                      <li>Open the repository on GitHub.</li>
+                      <li>Clone it locally using your Git terminal.</li>
+                      <li>Follow along with the instructor.</li>
+                      <li>Make your own commits during class.</li>
+                    </ol>
+                  </div>
+                </section>
+
+                {/* Resource 5: Assignment Repository */}
+                <section className="day-guide-card" style={{ gridColumn: "span 1" }}>
+                  <div className="day-guide-card-header">
+                    <div className="day-guide-card-icon">
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                      </svg>
+                    </div>
+                    <div className="day-guide-card-title-section">
+                      <h2 className="day-guide-card-title">Assignment Submission</h2>
+                      <p className="day-guide-card-desc">
+                        Submit your hands-on exercises and portfolio commit details for evaluation.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Primary Button */}
+                  <div style={{ margin: "20px 0" }}>
+                    <Link
+                      href="/dashboard?tab=assignments"
+                      className="day-guide-btn"
+                    >
+                      Submit Assignment
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+
+                  {/* Sub Guide */}
+                  <div className="day-guide-steps">
+                    <h3 className="day-guide-steps-title">Quick Instructions</h3>
+                    <ol className="day-guide-steps-list">
+                      <li>Complete the assigned tasks on your repository.</li>
+                      <li>Click the button above to go to the submission form.</li>
+                      <li>Provide your repository link and optional notes.</li>
+                      <li>Submit to record your progress and earn XP.</li>
                     </ol>
                   </div>
                 </section>
@@ -847,7 +983,7 @@ export default function DaySchedulePage({ params }: PageProps) {
               {/* Closing Note */}
               <div className="day-guide-banner">
                 <p>
-                  🎉 Once your changes are staged and committed, you're ready for today's session — see you at {session.time.split("–")[0]}!
+                  🎉 Once you have reviewed the cheat sheet and prepared your environment, you're ready for the session!
                 </p>
               </div>
             </div>
