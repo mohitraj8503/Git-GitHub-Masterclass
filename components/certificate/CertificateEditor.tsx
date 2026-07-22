@@ -237,7 +237,7 @@ export const CertificateEditor: React.FC<CertificateEditorProps> = ({
           Preview Scale
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#F1F5F9', padding: '4px', borderRadius: '8px' }}>
-          {[0.2, 0.28, 0.35, 0.5].map((s) => (
+          {[0.5, 0.75, 0.85, 1.0].map((s) => (
             <button
               key={s}
               onClick={() => onScaleChange(s)}
@@ -289,11 +289,33 @@ export const CertificateEditor: React.FC<CertificateEditorProps> = ({
           </div>
           <div>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
-              Certificate ID
+              Enrollment ID (Generates Credential ID: GT/&lt;EnrollmentID&gt;)
             </label>
             <input
               type="text"
-              value={data.certificateId}
+              value={data.enrollmentId || ''}
+              onChange={(e) => handleInputChange('enrollmentId', e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                backgroundColor: '#F8FAFC',
+                border: '1px solid #CBD5E1',
+                borderRadius: '10px',
+                fontSize: '14px',
+                fontWeight: 600,
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+              placeholder="e.g. 250609"
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
+              Custom Certificate ID (Optional Override)
+            </label>
+            <input
+              type="text"
+              value={data.certificateId || ''}
               onChange={(e) => handleInputChange('certificateId', e.target.value)}
               style={{
                 width: '100%',
@@ -306,7 +328,7 @@ export const CertificateEditor: React.FC<CertificateEditorProps> = ({
                 outline: 'none',
                 boxSizing: 'border-box',
               }}
-              placeholder="e.g. TT/GIT/2026/058"
+              placeholder="Leave empty to use GT/<EnrollmentID>"
             />
           </div>
           <div>

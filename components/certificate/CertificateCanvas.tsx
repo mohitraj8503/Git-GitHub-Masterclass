@@ -2,17 +2,19 @@
 
 import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { CertificateProps } from '@/types/certificate';
+import { CertificateProps, generateCredentialId, COURSE_PREFIX } from '@/types/certificate';
 
 export const defaultCertificateData = {
   recipientName: 'Mohit Raj',
-  certificateId: 'TT/GIT/2026/058',
+  enrollmentId: '250609',
+  coursePrefix: COURSE_PREFIX,
+  certificateId: '',
   completionDate: '18TH MAY, 2026',
   workshopName: 'Git & GitHub Masterclass',
   description:
-    'has successfully completed the <span style="color:#F6A700; font-weight:600;">Git & GitHub Masterclass</span>, a 7-day hands-on workshop organized by <strong style="color:#111111;">Arka Jain University</strong>, in collaboration with <span style="color:#F6A700; font-weight:600;">Microsoft Learn Student Ambassadors</span> and <strong style="color:#111111;">GitHub</strong>. This workshop focused on Version Control, Collaboration, Open Source and Real-world Projects.',
+    'has successfully completed the <span style="color:#F4A51C; font-weight:700;">Git & GitHub Masterclass</span>,<br/>a 7-day hands-on workshop organized by <strong style="font-weight:700;">Arka Jain University</strong>,<br/>in collaboration with <span style="color:#F4A51C; font-weight:700;">Microsoft Learn Student Ambassadors</span> and <strong style="font-weight:700;">GitHub</strong>.<br/>This workshop focused on Version Control, Collaboration,<br/>Open Source and Real-world Projects.',
   organization: 'Arka Jain University',
-  qrCodeUrl: 'https://github-masterclass.azurewebsites.net/verify/TT-GIT-2026-058',
+  qrCodeUrl: 'https://github-masterclass.azurewebsites.net/verify/GT-250609',
   signatures: [
     {
       name: 'DR. ASHWINI KUMAR',
@@ -30,7 +32,7 @@ export const defaultCertificateData = {
       name: 'PROF. (DR.) ANGAD TIWARY',
       designation: 'PRO VICE-CHANCELLOR',
       organization: 'ARKA JAIN UNIVERSITY',
-      signatureSvg: 'Angad',
+      signatureSvg: 'Anuay',
     },
   ],
   skills: [
@@ -48,604 +50,256 @@ export const CertificateCanvas: React.FC<CertificateProps> = ({
 }) => {
   const mergedData = { ...defaultCertificateData, ...data };
 
+  // Generate dynamic Credential ID based on enrollmentId, coursePrefix or custom certificateId override
+  const credentialId = generateCredentialId(
+    {
+      name: mergedData.recipientName,
+      enrollmentId: mergedData.enrollmentId,
+      certificateId: mergedData.certificateId,
+    },
+    mergedData.certificateId,
+    mergedData.coursePrefix || COURSE_PREFIX
+  );
+
   return (
-    <div
-      style={{
-        width: '3508px',
-        height: '2480px',
-        position: 'relative',
-        overflow: 'hidden',
-        backgroundColor: '#FCFCFB',
-        color: '#111111',
-        transform: scale !== 1 ? `scale(${scale})` : undefined,
-        transformOrigin: 'top left',
-        boxSizing: 'border-box',
-      }}
-      className={`font-inter ${className}`}
-      id="certificate-canvas"
-    >
-      {/* Background Subtle Gradient */}
+    <>
+      {/* Inject Google Fonts & Print Styles */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&family=Montserrat:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&display=swap');
+
+          @media print {
+            @page {
+              size: A4 landscape;
+              margin: 0 !important;
+            }
+            html, body {
+              width: 100% !important;
+              height: 100% !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+              overflow: hidden !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            body * {
+              visibility: hidden !important;
+            }
+            #certificate-canvas, #certificate-canvas * {
+              visibility: visible !important;
+            }
+            #certificate-canvas {
+              position: fixed !important;
+              top: 0 !important;
+              left: 0 !important;
+              width: 297mm !important;
+              height: 210mm !important;
+              transform: scale(0.99) !important;
+              transform-origin: top left !important;
+              box-shadow: none !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              z-index: 999999 !important;
+              page-break-after: avoid !important;
+              page-break-inside: avoid !important;
+            }
+          }
+        `
+      }} />
+
       <div
         style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '3508px',
-          height: '2480px',
-          background: 'linear-gradient(180deg, #FFFFFF 0%, #FBFBFB 100%)',
-          opacity: 0.98,
-          pointerEvents: 'none',
-        }}
-      />
-
-      {/* Inset Gold Border (2px gold border, 28px radius, 28px inset) */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '28px',
-          left: '28px',
-          width: '3452px',
-          height: '2424px',
-          border: '2px solid #E7B638',
-          borderRadius: '28px',
-          pointerEvents: 'none',
-          zIndex: 20,
-          boxShadow: '0 12px 40px rgba(0,0,0,0.03)',
-          boxSizing: 'border-box',
-        }}
-      />
-
-      {/* Background Concentric Golden Circles (behind top-right GitHub ribbon) */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          right: '250px',
-          width: '1400px',
-          height: '1400px',
-          pointerEvents: 'none',
-          zIndex: 0,
-          opacity: 0.4,
-        }}
-      >
-        <svg
-          viewBox="0 0 1400 1400"
-          style={{ width: '1400px', height: '1400px', filter: 'blur(1px)' }}
-        >
-          <circle cx="700" cy="200" r="320" fill="none" stroke="#FDB813" strokeWidth="2" opacity="0.25" />
-          <circle cx="700" cy="200" r="480" fill="none" stroke="#FDB813" strokeWidth="2" opacity="0.2" />
-          <circle cx="700" cy="200" r="640" fill="none" stroke="#FDB813" strokeWidth="2" opacity="0.15" />
-          <circle cx="700" cy="200" r="800" fill="none" stroke="#FDB813" strokeWidth="1.5" opacity="0.1" />
-          <circle cx="700" cy="200" r="960" fill="none" stroke="#FDB813" strokeWidth="1" opacity="0.06" />
-        </svg>
-      </div>
-
-      {/* Decorative Dot Matrix - Top Right */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '85px',
-          right: '85px',
-          zIndex: 10,
-          opacity: 0.18,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 7px)',
-          gap: '12px',
-        }}
-      >
-        {[...Array(9)].map((_, i) => (
-          <div key={i} style={{ width: '7px', height: '7px', backgroundColor: '#1A1A1A', borderRadius: '50%' }} />
-        ))}
-      </div>
-
-      {/* Decorative Dot Matrix - Bottom Right */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '90px',
-          right: '85px',
-          zIndex: 10,
-          opacity: 0.18,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 7px)',
-          gap: '12px',
-        }}
-      >
-        {[...Array(16)].map((_, i) => (
-          <div key={i} style={{ width: '7px', height: '7px', backgroundColor: '#1A1A1A', borderRadius: '50%' }} />
-        ))}
-      </div>
-
-      {/* TOP RIGHT GOLDEN BOOKMARK RIBBON WITH GITHUB LOGO */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          right: '380px',
-          width: '310px',
-          height: '820px',
-          zIndex: 30,
-          filter: 'drop-shadow(0px 18px 30px rgba(0, 0, 0, 0.12))',
-        }}
-      >
-        <svg
-          style={{ position: 'absolute', top: 0, left: 0, width: '310px', height: '820px' }}
-          viewBox="0 0 310 820"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M0 0 H310 V700 Q310 760 270 780 L155 820 L40 780 Q0 760 0 700 Z"
-            fill="url(#goldRibbonGradientFixed)"
-          />
-          <defs>
-            <linearGradient id="goldRibbonGradientFixed" x1="155" y1="0" x2="155" y2="820" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#F6A700" />
-              <stop offset="0.6" stopColor="#F6A700" />
-              <stop offset="1" stopColor="#FFC93A" />
-            </linearGradient>
-          </defs>
-        </svg>
-
-        {/* GitHub Badge Circle inside Ribbon */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '250px',
-            left: '50px',
-            width: '210px',
-            height: '210px',
-            borderRadius: '50%',
-            backgroundColor: '#181D27',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: '5px solid #FFF8E7',
-            boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.5)',
-            zIndex: 35,
-          }}
-        >
-          <svg style={{ width: '125px', height: '125px', fill: '#FFFFFF' }} width="125" height="125" viewBox="0 0 98 96" xmlns="http://www.w3.org/2000/svg">
-            <path
-              fillRule="evenodd"
-              clipRule="evenodd"
-              d="M48.854 0C21.839 0 0 22 0 49.217c0 21.756 13.993 40.172 33.405 46.69 2.427.49 3.316-1.059 3.316-2.362 0-1.141-.08-5.052-.08-9.127-13.59 2.934-16.42-5.867-16.42-5.867-2.224-5.624-5.421-7.17-5.421-7.17-4.448-3.015.324-3.015.324-3.015 4.934.326 7.523 5.052 7.523 5.052 4.367 7.496 11.404 5.378 14.235 4.074.404-3.178 1.699-5.378 3.074-6.6-10.839-1.141-22.243-5.378-22.243-24.283 0-5.378 1.94-9.778 5.014-13.2-.485-1.222-2.184-6.275.486-13.038 0 0 4.125-1.304 13.426 5.052a46.97 46.97 0 0112.214-1.63c4.125 0 8.33.571 12.213 1.63 9.302-6.356 13.427-5.052 13.427-5.052 2.67 6.763.97 11.816.485 13.038 3.155 3.422 5.015 7.822 5.015 13.2 0 18.905-11.404 23.06-22.324 24.283 1.78 1.548 3.316 4.481 3.316 9.126 0 6.6-.08 11.897-.08 13.526 0 1.304.89 2.853 3.316 2.364 19.412-6.52 33.405-24.935 33.405-46.691C97.707 22 75.868 0 48.854 0z"
-            />
-          </svg>
-        </div>
-      </div>
-
-      {/* TOP LEFT HEADER LOGOS */}
-      {/* 1. Microsoft Logo */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/images/microsoft-logo.svg"
-        alt="Microsoft"
-        style={{
-          position: 'absolute',
-          top: '120px',
-          left: '140px',
-          height: '85px',
-          objectFit: 'contain',
-        }}
-      />
-
-      {/* Vertical Divider */}
-      <div style={{ position: 'absolute', top: '120px', left: '500px', width: '2px', height: '85px', backgroundColor: '#E2E8F0' }} />
-
-      {/* 2 & 3. Arka Jain University Logo Banner (Includes JGI & NAAC Grade A) */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/images/arka-jain-logo-wide.png"
-        alt="Arka Jain University"
-        style={{
-          position: 'absolute',
-          top: '110px',
-          left: '540px',
-          height: '125px',
-          objectFit: 'contain',
-        }}
-      />
-
-      {/* FAINT DOT ROW ACCENT */}
-      <div style={{ position: 'absolute', top: '340px', left: '140px', display: 'flex', alignItems: 'center', gap: '10px', opacity: 0.4 }}>
-        <div style={{ width: '8px', height: '8px', backgroundColor: '#F6A700', borderRadius: '50%' }} />
-        <div style={{ width: '8px', height: '8px', backgroundColor: '#F6A700', borderRadius: '50%' }} />
-        <div style={{ width: '8px', height: '8px', backgroundColor: '#F6A700', borderRadius: '50%' }} />
-        <div style={{ width: '8px', height: '8px', backgroundColor: '#F6A700', borderRadius: '50%' }} />
-        <div style={{ width: '60px', height: '2px', backgroundColor: '#F6A700' }} />
-      </div>
-
-      {/* MAIN TITLE BLOCK (Target Content Width ≈ 1500px, Scaled Up 1.55x) */}
-      {/* CERTIFICATE OF COMPLETION (38px) */}
-      <h2
-        style={{
-          position: 'absolute',
-          top: '380px',
-          left: '140px',
-          fontWeight: 500,
-          color: '#F6A700',
-          fontSize: '38px',
-          letterSpacing: '20px',
-          textTransform: 'uppercase',
-          margin: 0,
-        }}
-        className="font-plus-jakarta"
-      >
-        CERTIFICATE OF COMPLETION
-      </h2>
-
-      {/* GIT & GITHUB (210px DOMINANT TITLE) */}
-      <h1
-        style={{
-          position: 'absolute',
-          top: '450px',
-          left: '140px',
-          fontWeight: 900,
-          fontSize: '210px',
-          lineHeight: 0.9,
-          letterSpacing: '-0.02em',
-          margin: 0,
-          width: '1500px',
-        }}
-      >
-        <span style={{ color: '#111111' }}>GIT & </span>
-        <span
-          style={{
-            background: 'linear-gradient(180deg, #F6A700 0%, #FFC93A 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}
-        >
-          GITHUB
-        </span>
-      </h1>
-
-      {/* MASTERCLASS (68px) */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '665px',
-          left: '140px',
-          fontWeight: 300,
-          fontSize: '68px',
-          color: '#222222',
-          letterSpacing: '0.38em',
-          textTransform: 'uppercase',
-        }}
-      >
-        M A S T E R C L A S S
-      </div>
-
-      {/* WORKSHOP BADGE */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '775px',
-          left: '140px',
-          height: '72px',
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '18px',
-          border: '2.5px solid #F6A700',
-          borderRadius: '9999px',
-          padding: '18px 40px',
-          backgroundColor: '#FFFDF8',
-          boxSizing: 'border-box',
-        }}
-      >
-        <svg style={{ width: '28px', height: '28px', color: '#F6A700' }} width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-          <line x1="16" y1="2" x2="16" y2="6" />
-          <line x1="8" y1="2" x2="8" y2="6" />
-          <line x1="3" y1="10" x2="21" y2="10" />
-        </svg>
-        <span style={{ fontWeight: 700, fontSize: '26px', color: '#111111', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-          7-DAY HANDS-ON WORKSHOP
-        </span>
-      </div>
-
-      {/* RECIPIENT SECTION (Target Content Width ≈ 1200px - 1400px) */}
-      {/* THIS IS TO CERTIFY THAT (26px) */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '920px',
-          left: '140px',
-          color: '#777777',
-          fontSize: '26px',
-          fontWeight: 500,
-          letterSpacing: '0.2em',
-          textTransform: 'uppercase',
-        }}
-      >
-        THIS IS TO CERTIFY THAT
-      </div>
-
-      {/* Recipient Name (135px, Playfair/Cormorant) */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '975px',
-          left: '140px',
-          fontWeight: 600,
-          fontSize: '135px',
-          color: '#1D2432',
-          lineHeight: 1,
-          width: '1400px',
-        }}
-        className="font-cormorant"
-      >
-        {mergedData.recipientName}
-      </div>
-
-      {/* Gold Underline (1200px) */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '1125px',
-          left: '140px',
           width: '1200px',
-          height: '3px',
-          backgroundColor: '#E7B638',
+          height: '820px',
+          position: 'relative',
+          overflow: 'hidden',
+          backgroundColor: '#ffffff',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+          transform: scale !== 1 ? `scale(${scale})` : undefined,
+          transformOrigin: 'top left',
+          boxSizing: 'border-box',
+          fontFamily: "'Montserrat', sans-serif",
+          margin: 0,
+          padding: 0,
         }}
+        className={`certificate-container ${className}`}
+        id="certificate-canvas"
       >
+        {/* Background Concentric Circles */}
+        <div style={{ position: 'absolute', border: '1px solid #F2F2F2', borderRadius: '50%', top: '200px', right: '175px', transform: 'translate(50%, -50%)', zIndex: 1, width: '300px', height: '300px' }} />
+        <div style={{ position: 'absolute', border: '1px solid #F2F2F2', borderRadius: '50%', top: '200px', right: '175px', transform: 'translate(50%, -50%)', zIndex: 1, width: '450px', height: '450px' }} />
+        <div style={{ position: 'absolute', border: '1px solid #F2F2F2', borderRadius: '50%', top: '200px', right: '175px', transform: 'translate(50%, -50%)', zIndex: 1, width: '600px', height: '600px' }} />
+        <div style={{ position: 'absolute', border: '1px solid #F2F2F2', borderRadius: '50%', top: '200px', right: '175px', transform: 'translate(50%, -50%)', zIndex: 1, width: '750px', height: '750px' }} />
+        <div style={{ position: 'absolute', border: '1px solid #F8F8F8', borderRadius: '50%', top: '200px', right: '175px', transform: 'translate(50%, -50%)', zIndex: 1, width: '900px', height: '900px' }} />
+        <div style={{ position: 'absolute', border: '1px solid #FAFAFA', borderRadius: '50%', top: '200px', right: '175px', transform: 'translate(50%, -50%)', zIndex: 1, width: '1050px', height: '1050px' }} />
+
+        {/* Dot Patterns */}
+        <div style={{ position: 'absolute', backgroundImage: 'radial-gradient(#D3D3D3 2px, transparent 2px)', backgroundSize: '15px 15px', zIndex: 1, top: '60px', right: '50px', width: '60px', height: '60px' }} />
+        <div style={{ position: 'absolute', backgroundImage: 'radial-gradient(#D3D3D3 2px, transparent 2px)', backgroundSize: '15px 15px', zIndex: 1, top: '140px', left: '60px', width: '60px', height: '15px' }} />
+        <div style={{ position: 'absolute', backgroundImage: 'radial-gradient(#D3D3D3 2px, transparent 2px)', backgroundSize: '15px 15px', zIndex: 1, bottom: '60px', right: '60px', width: '75px', height: '60px' }} />
+
+        {/* Bottom Left Shapes & Date */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, width: '250px', height: '100px', backgroundColor: '#D68C11', clipPath: 'polygon(0 0, 100% 100%, 0 100%)', zIndex: 2 }} />
         <div
           style={{
             position: 'absolute',
-            top: '-5px',
-            left: '594px',
-            width: '12px',
-            height: '12px',
-            backgroundColor: '#F6A700',
-            borderRadius: '50%',
-          }}
-        />
-      </div>
-
-      {/* DESCRIPTION PARAGRAPH (Target Content Width ≈ 1250px, Font 26px, Line Height 1.85) */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '1185px',
-          left: '140px',
-          width: '1250px',
-          color: '#333333',
-          fontSize: '26px',
-          lineHeight: 1.85,
-          fontWeight: 400,
-        }}
-        dangerouslySetInnerHTML={{ __html: mergedData.description }}
-      />
-
-      {/* QR SECTION (MOVED SLIGHTLY INWARD FROM RIGHT EDGE: right = 320px) */}
-      {/* Certificate ID */}
-      <div style={{ position: 'absolute', top: '980px', right: '320px', width: '300px', textAlign: 'center' }}>
-        <div style={{ color: '#888888', fontWeight: 500, fontSize: '22px', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
-          CERTIFICATE ID
-        </div>
-        <div style={{ width: '45px', height: '3px', backgroundColor: '#F6A700', margin: '10px auto' }} />
-        <div style={{ fontWeight: 800, fontSize: '26px', color: '#111111', letterSpacing: '0.05em' }}>
-          {mergedData.certificateId}
-        </div>
-      </div>
-
-      {/* QR Code Card Box (240px QR Code inside) */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '1060px',
-          right: '320px',
-          width: '300px',
-          height: '300px',
-          backgroundColor: '#FFFFFF',
-          padding: '30px',
-          borderRadius: '30px',
-          border: '3px solid #F6A700',
-          boxShadow: '0 6px 18px rgba(0,0,0,0.06)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxSizing: 'border-box',
-        }}
-      >
-        <QRCodeSVG
-          value={mergedData.qrCodeUrl}
-          size={240}
-          level="H"
-          includeMargin={false}
-        />
-      </div>
-
-      {/* SIGNATURES SECTION (EVENLY DISTRIBUTED ACROSS HORIZONTAL WIDTH) */}
-      {/* Column 1 (Left = 140px, Width = 520px) */}
-      <div style={{ position: 'absolute', top: '1780px', left: '140px', width: '520px', display: 'flex', flexDirection: 'column' }}>
-        <div
-          style={{
-            height: '85px',
-            display: 'flex',
-            alignItems: 'flex-end',
-            fontSize: '64px',
-            color: '#0F172A',
-            fontFamily: 'var(--font-signature), cursive',
-            textTransform: 'none',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            maxWidth: '480px',
-          }}
-          className="font-signature"
-        >
-          {mergedData.signatures[0]?.signatureSvg || mergedData.signatures[0]?.name}
-        </div>
-        <div style={{ width: '360px', height: '2px', backgroundColor: '#E2E8F0', marginTop: '12px', marginBottom: '12px' }} />
-        <div style={{ fontWeight: 700, fontSize: '26px', color: '#F6A700', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-          {mergedData.signatures[0]?.name}
-        </div>
-        <div style={{ fontWeight: 700, fontSize: '19px', color: '#334155', letterSpacing: '0.05em', textTransform: 'uppercase', marginTop: '4px' }}>
-          {mergedData.signatures[0]?.designation}
-        </div>
-        <div style={{ fontWeight: 500, fontSize: '17px', color: '#64748B', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: '2px' }}>
-          {mergedData.signatures[0]?.organization}
-        </div>
-      </div>
-
-      {/* Sig Divider 1 (Left = 700px) */}
-      <div style={{ position: 'absolute', top: '1810px', left: '700px', width: '2px', height: '140px', backgroundColor: '#E2E8F0' }} />
-
-      {/* Column 2 (Left = 740px, Width = 520px) */}
-      <div style={{ position: 'absolute', top: '1780px', left: '740px', width: '520px', display: 'flex', flexDirection: 'column' }}>
-        <div
-          style={{
-            height: '85px',
-            display: 'flex',
-            alignItems: 'flex-end',
-            fontSize: '64px',
-            color: '#0F172A',
-            fontFamily: 'var(--font-signature), cursive',
-            textTransform: 'none',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            maxWidth: '480px',
-          }}
-          className="font-signature"
-        >
-          {mergedData.signatures[1]?.signatureSvg || mergedData.signatures[1]?.name}
-        </div>
-        <div style={{ width: '360px', height: '2px', backgroundColor: '#E2E8F0', marginTop: '12px', marginBottom: '12px' }} />
-        <div style={{ fontWeight: 700, fontSize: '26px', color: '#F6A700', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-          {mergedData.signatures[1]?.name}
-        </div>
-        <div style={{ fontWeight: 700, fontSize: '19px', color: '#334155', letterSpacing: '0.05em', textTransform: 'uppercase', marginTop: '4px' }}>
-          {mergedData.signatures[1]?.designation}
-        </div>
-        <div style={{ fontWeight: 500, fontSize: '17px', color: '#64748B', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: '2px' }}>
-          {mergedData.signatures[1]?.organization}
-        </div>
-      </div>
-
-      {/* Sig Divider 2 (Left = 1300px) */}
-      <div style={{ position: 'absolute', top: '1810px', left: '1300px', width: '2px', height: '140px', backgroundColor: '#E2E8F0' }} />
-
-      {/* Column 3 (Left = 1340px, Width = 520px) */}
-      <div style={{ position: 'absolute', top: '1780px', left: '1340px', width: '520px', display: 'flex', flexDirection: 'column' }}>
-        <div
-          style={{
-            height: '85px',
-            display: 'flex',
-            alignItems: 'flex-end',
-            fontSize: '64px',
-            color: '#0F172A',
-            fontFamily: 'var(--font-signature), cursive',
-            textTransform: 'none',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            maxWidth: '480px',
-          }}
-          className="font-signature"
-        >
-          {mergedData.signatures[2]?.signatureSvg || mergedData.signatures[2]?.name}
-        </div>
-        <div style={{ width: '360px', height: '2px', backgroundColor: '#E2E8F0', marginTop: '12px', marginBottom: '12px' }} />
-        <div style={{ fontWeight: 700, fontSize: '26px', color: '#F6A700', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-          {mergedData.signatures[2]?.name}
-        </div>
-        <div style={{ fontWeight: 700, fontSize: '19px', color: '#334155', letterSpacing: '0.05em', textTransform: 'uppercase', marginTop: '4px' }}>
-          {mergedData.signatures[2]?.designation}
-        </div>
-        <div style={{ fontWeight: 500, fontSize: '17px', color: '#64748B', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: '2px' }}>
-          {mergedData.signatures[2]?.organization}
-        </div>
-      </div>
-
-      {/* BOTTOM LEFT DATE CARD BADGE */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '0px',
-          left: '0px',
-          width: '640px',
-          height: '130px',
-          backgroundColor: '#F6A700',
-          color: '#FFFFFF',
-          borderTopRightRadius: '36px',
-          borderBottomRightRadius: '36px',
-          borderTopLeftRadius: '36px',
-          borderBottomLeftRadius: '26px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '24px',
-          paddingLeft: '130px',
-          boxSizing: 'border-box',
-          boxShadow: '0 6px 18px rgba(0,0,0,0.12)',
-        }}
-      >
-        <div
-          style={{
-            width: '60px',
-            height: '60px',
-            borderRadius: '50%',
-            border: '2px solid rgba(255,255,255,0.85)',
+            bottom: 0,
+            left: 0,
+            width: '280px',
+            height: '120px',
+            backgroundColor: '#F4A51C',
+            clipPath: 'polygon(0 40px, 140px 120px, 280px 120px, 0 120px)',
+            zIndex: 3,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
+            paddingLeft: '30px',
+            paddingTop: '50px',
+            boxSizing: 'border-box'
           }}
         >
-          <svg style={{ width: '34px', height: '34px', color: '#FFFFFF' }} width="34" height="34" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-            <line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" />
-            <line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <svg viewBox="0 0 24 24" style={{ width: '34px', height: '34px', fill: 'none', stroke: '#fff', strokeWidth: '1.5' }}>
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+              <rect x="7" y="14" width="3" height="3" fill="#fff" stroke="none" />
+              <rect x="11" y="14" width="3" height="3" fill="#fff" stroke="none" />
+              <rect x="15" y="14" width="3" height="3" fill="#fff" stroke="none" />
+            </svg>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ fontSize: '10px', color: '#444', fontWeight: 600, letterSpacing: '0.5px' }}>COMPLETED ON</div>
+              <div style={{ fontSize: '14px', color: '#000', fontWeight: 800, marginTop: '2px' }}>
+                {mergedData.completionDate}
+              </div>
+            </div>
+          </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontSize: '17px', fontWeight: 600, letterSpacing: '0.15em', color: 'rgba(255,255,255,0.92)', textTransform: 'uppercase' }}>
-            COMPLETED ON
-          </span>
-          <span style={{ fontSize: '30px', fontWeight: 900, letterSpacing: '0.05em', color: '#FFFFFF', textTransform: 'uppercase', lineHeight: 1.1 }}>
-            {mergedData.completionDate}
-          </span>
-        </div>
-      </div>
 
-      {/* FOOTER SKILLS ICONS (70px Circles, 80px Spacing) */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '60px',
-          right: '180px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '80px',
-        }}
-      >
-        {mergedData.skills?.map((skill, index) => (
-          <React.Fragment key={skill.id}>
-            {index > 0 && (
-              <div style={{ width: '2px', height: '50px', borderRight: '2px dashed #CBD5E1' }} />
-            )}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-              <div
-                style={{
-                  width: '70px',
-                  height: '70px',
-                  borderRadius: '50%',
-                  border: '2.5px solid #F6A700',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#FFFFFF',
-                  boxShadow: '0 3px 8px rgba(0,0,0,0.05)',
-                  color: '#111111',
-                }}
-              >
+        {/* Top Left Logos (Pure HTML/CSS to ensure exact matching without external images) */}
+        <div style={{ position: 'absolute', top: '60px', left: '60px', display: 'flex', alignItems: 'center', gap: '35px', zIndex: 10 }}>
+          {/* Microsoft Image Logo */}
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/microsoft-logo.svg"
+              alt="Microsoft"
+              style={{ height: '32px', width: 'auto', objectFit: 'contain' }}
+            />
+          </div>
+          {/* JGI Arka Jain Image Logo */}
+          <div style={{ display: 'flex', alignItems: 'center', borderLeft: '1px solid #E2E2E2', paddingLeft: '25px' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/arka-jain-logo-wide.png"
+              alt="Arka Jain University"
+              style={{ height: '46px', width: 'auto', objectFit: 'contain' }}
+            />
+          </div>
+        </div>
+
+        {/* Main Certificate Content */}
+        <div style={{ position: 'absolute', top: '160px', left: '60px', zIndex: 10, width: '750px' }}>
+          <div style={{ fontSize: '18px', fontWeight: 600, color: '#F4A51C', letterSpacing: '7px', marginBottom: '5px' }}>
+            CERTIFICATE OF COMPLETION
+          </div>
+          <div style={{ fontSize: '82px', fontWeight: 900, lineHeight: 1, marginBottom: '5px', letterSpacing: '-1px' }}>
+            <span style={{ color: '#1F2024' }}>GIT &</span> <span style={{ color: '#F4A51C' }}>GITHUB</span>
+          </div>
+          <div style={{ fontSize: '24px', fontWeight: 600, color: '#1F2024', letterSpacing: '16px', marginBottom: '25px' }}>
+            M A S T E R C L A S S
+          </div>
+
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', border: '1px solid #F4A51C', padding: '8px 20px', borderRadius: '30px', marginBottom: '40px' }}>
+            <svg viewBox="0 0 24 24" style={{ width: '18px', height: '18px', fill: '#F4A51C' }}>
+              <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5z" />
+            </svg>
+            <span style={{ fontSize: '14px', fontWeight: 700, color: '#1F2024', letterSpacing: '1px' }}>
+              7-DAY HANDS-ON WORKSHOP
+            </span>
+          </div>
+
+          <div style={{ fontSize: '13px', fontWeight: 600, color: '#888888', letterSpacing: '1.5px', marginBottom: '5px' }}>
+            THIS IS TO CERTIFY THAT
+          </div>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '72px', fontWeight: 600, color: '#151C3E', marginBottom: '15px', lineHeight: 1.1 }}>
+            {mergedData.recipientName}
+          </div>
+
+          {/* Name Underline with center dot */}
+          <div style={{ width: '480px', height: '1px', backgroundColor: '#F4A51C', position: 'relative', marginBottom: '25px' }}>
+            <div style={{ position: 'absolute', top: '-2px', left: '50%', transform: 'translateX(-50%)', width: '5px', height: '5px', backgroundColor: '#F4A51C', borderRadius: '50%' }} />
+          </div>
+
+          <div
+            style={{ fontSize: '15px', color: '#1F2024', lineHeight: 1.6, maxWidth: '600px', marginBottom: '25px' }}
+            dangerouslySetInnerHTML={{ __html: mergedData.description }}
+          />
+
+          {/* Signatures Area */}
+          <div style={{ display: 'flex', gap: '0px', width: '700px' }}>
+            {mergedData.signatures.map((sig, index) => (
+              <div key={index} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+                {/* Empty space reserved above line */}
+                <div style={{ height: '42px', marginBottom: '6px' }} />
+                <div style={{ width: '160px', height: '1px', backgroundColor: '#CCC', marginBottom: '6px' }} />
+                <div style={{ fontSize: '10px', fontWeight: 700, color: '#F4A51C', letterSpacing: '0.5px', marginBottom: '2px' }}>
+                  {sig.name}
+                </div>
+                <div style={{ fontSize: '9px', fontWeight: 600, color: '#1F2024', letterSpacing: '0.5px' }}>
+                  {sig.designation}
+                </div>
+                <div style={{ fontSize: '9px', fontWeight: 600, color: '#1F2024', letterSpacing: '0.5px' }}>
+                  {sig.organization}
+                </div>
+
+                {/* Vertical Separator Line between signatures */}
+                {index !== mergedData.signatures.length - 1 && (
+                  <div style={{ position: 'absolute', right: 0, bottom: 0, height: '40px', width: '1px', backgroundColor: '#CCC' }} />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right GitHub Ribbon */}
+        <div style={{ position: 'absolute', top: '-10px', right: '120px', width: '130px', height: '290px', backgroundColor: '#F4A51C', borderRadius: '10px 10px 0 0', clipPath: 'polygon(0 0, 100% 0, 100% 85%, 50% 100%, 0 85%)', zIndex: 10, display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+          <div style={{ width: '90px', height: '90px', backgroundColor: '#000', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '20px' }}>
+            <svg viewBox="0 0 24 24" style={{ width: '60px', height: '60px', fill: '#FFF' }}>
+              <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Certificate ID & QR Code */}
+        <div style={{ position: 'absolute', top: '360px', right: '85px', width: '200px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 10 }}>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: '#555555', letterSpacing: '1px', marginBottom: '8px' }}>CERTIFICATE ID</div>
+          <div style={{ width: '120px', height: '2px', backgroundColor: '#F4A51C', marginBottom: '12px', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: '-1px', left: '50%', transform: 'translateX(-50%)', width: '4px', height: '4px', backgroundColor: '#F4A51C', borderRadius: '50%' }} />
+          </div>
+          <div style={{ fontSize: '16px', fontWeight: 800, color: '#1F2024', marginBottom: '20px' }}>
+            {credentialId}
+          </div>
+          <div style={{ width: '140px', height: '140px', border: '1px solid #F4A51C', borderRadius: '8px', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '8px', backgroundColor: '#fff', boxSizing: 'border-box' }}>
+            <QRCodeSVG value={mergedData.qrCodeUrl} size={122} level="H" includeMargin={false} />
+          </div>
+        </div>
+
+        {/* Bottom Right Icons */}
+        <div style={{ position: 'absolute', bottom: '40px', right: '60px', display: 'flex', gap: '0', zIndex: 10 }}>
+          {mergedData.skills.map((skill, index) => (
+            <div key={skill.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 15px', position: 'relative' }}>
+              <div style={{ width: '42px', height: '42px', border: '1px solid #F4A51C', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '8px' }}>
                 {skill.icon === 'version-control' && (
-                  <svg style={{ width: '34px', height: '34px' }} width="34" height="34" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                    <polyline points="16 18 22 12 16 6" />
-                    <polyline points="8 6 2 12 8 18" />
+                  <svg viewBox="0 0 24 24" style={{ width: '20px', height: '20px', fill: 'none', stroke: '#1F2024', strokeWidth: '1.5', strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+                    <polyline points="7 8 3 12 7 16" />
+                    <polyline points="17 8 21 12 17 16" />
+                    <line x1="14" y1="4" x2="10" y2="20" />
                   </svg>
                 )}
                 {skill.icon === 'collaboration' && (
-                  <svg style={{ width: '34px', height: '34px' }} width="34" height="34" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <svg viewBox="0 0 24 24" style={{ width: '20px', height: '20px', fill: 'none', stroke: '#1F2024', strokeWidth: '1.5', strokeLinecap: 'round', strokeLinejoin: 'round' }}>
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                     <circle cx="9" cy="7" r="4" />
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -653,25 +307,30 @@ export const CertificateCanvas: React.FC<CertificateProps> = ({
                   </svg>
                 )}
                 {skill.icon === 'open-source' && (
-                  <svg style={{ width: '34px', height: '34px' }} width="34" height="34" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <svg viewBox="0 0 24 24" style={{ width: '20px', height: '20px', fill: 'none', stroke: '#1F2024', strokeWidth: '1.5', strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+                    <rect x="5" y="11" width="14" height="10" rx="2" ry="2" />
                     <path d="M7 11V7a5 5 0 0 1 9.9-1" />
                   </svg>
                 )}
                 {skill.icon === 'projects' && (
-                  <svg style={{ width: '34px', height: '34px' }} width="34" height="34" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                    <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
-                    <path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
+                  <svg viewBox="0 0 24 24" style={{ width: '20px', height: '20px', fill: 'none', stroke: '#1F2024', strokeWidth: '1.5', strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+                    <path d="M13.5 2.5a8.5 8.5 0 0 1 8 8c0 4.5-3 8.5-8.5 11.5a14.2 14.2 0 0 1-5.5-2.5l-3 1 1-3a14.2 14.2 0 0 1-2.5-5.5c3-5.5 7-8.5 11.5-8.5z" />
+                    <path d="M15 9h.01" strokeWidth="2" />
+                    <path d="M8.5 15.5l-2.5 2.5" />
+                    <path d="M11.5 18.5l-2.5 2.5" />
                   </svg>
                 )}
               </div>
-              <span style={{ fontWeight: 700, fontSize: '16px', color: '#111111', letterSpacing: '0.05em', textTransform: 'uppercase', textAlign: 'center', maxWidth: '150px' }}>
-                {skill.label}
-              </span>
+              <div style={{ fontSize: '9px', fontWeight: 700, color: '#1F2024', textAlign: 'center', lineHeight: 1.3, letterSpacing: '0.5px' }} dangerouslySetInnerHTML={{ __html: skill.label.replace(' ', '<br/>') }} />
+
+              {/* Dashed Separator Line between skills */}
+              {index !== mergedData.skills.length - 1 && (
+                <div style={{ position: 'absolute', right: 0, bottom: '5px', height: '30px', width: '1px', backgroundColor: '#E2E2E2', borderRight: '1px dashed #CCC' }} />
+              )}
             </div>
-          </React.Fragment>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
+    </>
   );
 };

@@ -8,7 +8,7 @@ import Link from 'next/link';
 
 export default function CertificatePage() {
   const [data, setData] = useState<CertificateData>(defaultCertificateData);
-  const [scale, setScale] = useState<number>(0.28); // 28% preview scale
+  const [scale, setScale] = useState<number>(0.75); // 75% preview scale
 
   return (
     <div
@@ -89,7 +89,7 @@ export default function CertificatePage() {
             }}
           >
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FCD34D' }} />
-            3508 × 2480 px Fixed A4 Landscape
+            1200 × 820 px Fixed Landscape
           </span>
         </div>
       </header>
@@ -134,7 +134,7 @@ export default function CertificatePage() {
               alignItems: 'center',
               justifyContent: 'space-between',
               width: '100%',
-              maxWidth: `${3508 * scale}px`,
+              maxWidth: `${1200 * scale}px`,
               fontSize: '12px',
               color: '#94A3B8',
             }}
@@ -144,11 +144,11 @@ export default function CertificatePage() {
               Illustrator Artboard Preview ({Math.round(scale * 100)}% Display Scale)
             </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span>A4 Fixed Ratio: 3508 × 2480 px</span>
+              <span>Canvas Ratio: 1200 × 820 px</span>
             </div>
           </div>
 
-          {/* Canvas Artboard Box (Exactly following Section 11 rule) */}
+          {/* Canvas Artboard Box */}
           <div
             style={{
               backgroundColor: '#000000',
@@ -162,8 +162,8 @@ export default function CertificatePage() {
           >
             <div
               style={{
-                width: 3508 * scale,
-                height: 2480 * scale,
+                width: 1200 * scale,
+                height: 820 * scale,
                 position: 'relative',
                 overflow: 'hidden',
                 borderRadius: '16px',
@@ -171,8 +171,8 @@ export default function CertificatePage() {
             >
               <div
                 style={{
-                  width: 3508,
-                  height: 2480,
+                  width: 1200,
+                  height: 820,
                   transform: `scale(${scale})`,
                   transformOrigin: 'top left',
                   position: 'absolute',
