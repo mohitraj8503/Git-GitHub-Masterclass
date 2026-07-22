@@ -66,7 +66,7 @@ export async function awardXp(
 
   try {
     // 1. Check if this exact action/reference is already rewarded
-    const query = supabaseAdmin
+    let query = supabaseAdmin
       .from("xp_transactions")
       .select("id")
       .eq("enrollment_number", enroll)
@@ -76,39 +76,44 @@ export async function awardXp(
       query.eq("reference_id", referenceId);
     }
 
-    const { data: existingTx, error: txErr } = await query.maybeSingle();
-    if (txErr) throw txErr;
+    const { data: existingTx, error: duplicateError } = await query.maybeSingle();
+    if (duplicateError) throw duplicateError;
     if (existingTx) {
       return { success: true, alreadyCompleted: true, xpEarned: 0, message: "Action already rewarded." };
     }
 
     let totalAwarded = baseReward;
-    const transactionsToInsert = [
+    const newlyUnlockedBadges: string[] = [];
+    const transactionsToInsert: any[] = [
       {
         enrollment_number: enroll,
         action_type: actionType,
         xp_amount: baseReward,
-        reference_id: referenceId || null,
-      }
+        reference_id: referenceId ?? null,
+      },
     ];
-
-    const newlyUnlockedBadges: string[] = [];
 
     // 2. Specialized Check-in Streaks and Achievements
     if (actionType === "mark_attendance") {
+      const studentId = await resolveRegId(enroll);
       // Get all attendance logs for this student to determine streak
-      const { data: attLogs } = await supabaseAdmin
+      const {
+        data: attendance,
+        error: attendanceError,
+      } = await supabaseAdmin
         .from("attendance")
         .select("session_day")
-        .eq("student_id", await resolveRegId(enroll));
+        .eq("student_id", studentId);
 
-      const daysAttended = (attLogs || []).map(a => Number(a.session_day));
-      const attendanceCount = daysAttended.length;
+if (attendanceError) throw attendanceError;
+
+      const uniqueDays = [...new Set((attendance || []).map((x) => Number(x.session_day))),];
+      const attendanceCount = uniqueDays.length;
 
       // First attendance achievement
       if (attendanceCount === 1) {
         const badge = ACHIEVEMENTS.first_attendance;
-        const unlocked = await unlockBadge(enroll, badge.badgeId, badge.xp);
+        const unlocked = await unlockBadge(enroll, badge.badgeId);
         if (unlocked) {
           totalAwarded += badge.xp;
           newlyUnlockedBadges.push(badge.badgeId);
@@ -124,18 +129,29 @@ export async function awardXp(
       // Check attendance streak bonuses
       const streakBonus = STREAK_BONUSES[attendanceCount];
       if (streakBonus) {
-        totalAwarded += streakBonus;
-        transactionsToInsert.push({
-          enrollment_number: enroll,
-          action_type: `attendance_streak_${attendanceCount}`,
-          xp_amount: streakBonus,
-          reference_id: `streak_${attendanceCount}`,
-        });
+       const { data: streakExists } = await supabaseAdmin
+           .from("xp_transactions")
+           .select("id")
+           .eq("enrollment_number", enroll)
+           .eq("action_type", `attendance_streak_${attendanceCount}`)
+           .maybeSingle();
+
+   if (!streakExists) {
+     totalAwarded += streakBonus;
+
+     transactionsToInsert.push({
+       enrollment_number: enroll,
+       action_type: `attendance_streak_${attendanceCount}`,
+       xp_amount: streakBonus,
+       reference_id: `streak_${attendanceCount}`,
+     });
+   }
+}
 
         // Perfect attendance badge
         if (attendanceCount === 7) {
           const badge = ACHIEVEMENTS.attend_all_7_days;
-          const unlocked = await unlockBadge(enroll, badge.badgeId, badge.xp);
+          const unlocked = await unlockBadge(enroll, badge.badgeId);
           if (unlocked) {
             totalAwarded += badge.xp;
             newlyUnlockedBadges.push(badge.badgeId);
@@ -148,83 +164,86 @@ export async function awardXp(
           }
         }
       }
-    }
 
     // 3. First GitHub submission check
     if (actionType === "submit_github_repo") {
-      const { count } = await supabaseAdmin
-        .from("xp_transactions")
-        .select("id", { count: "exact", head: true })
-        .eq("enrollment_number", enroll)
-        .eq("action_type", "submit_github_repo");
+    const badge = ACHIEVEMENTS.first_github_repo;
 
-      if ((count || 0) === 0) {
-        const badge = ACHIEVEMENTS.first_github_repo;
-        const unlocked = await unlockBadge(enroll, badge.badgeId, badge.xp);
-        if (unlocked) {
-          totalAwarded += badge.xp;
-          newlyUnlockedBadges.push(badge.badgeId);
-          transactionsToInsert.push({
-            enrollment_number: enroll,
-            action_type: "achievement_unlock",
-            xp_amount: badge.xp,
-            reference_id: badge.badgeId,
-          });
-        }
-      }
-    }
+    const unlocked = await unlockBadge(
+       enroll,
+       badge.badgeId
+    );
+
+   if (unlocked) {
+     totalAwarded += badge.xp;
+
+     newlyUnlockedBadges.push(badge.badgeId);
+
+     transactionsToInsert.push({
+       enrollment_number: enroll,
+       action_type: "achievement_unlock",
+       xp_amount: badge.xp,
+       reference_id: badge.badgeId,
+      });
+     }
+  }
+
 
     // 4. First Assignment submission check
-    if (actionType === "submit_assignment") {
-      const { count } = await supabaseAdmin
-        .from("xp_transactions")
-        .select("id", { count: "exact", head: true })
-        .eq("enrollment_number", enroll)
-        .eq("action_type", "submit_assignment");
+   if (actionType === "submit_assignment") {
+   const badge = ACHIEVEMENTS.first_assignment;
 
-      if ((count || 0) === 0) {
-        const badge = ACHIEVEMENTS.first_assignment;
-        const unlocked = await unlockBadge(enroll, badge.badgeId, badge.xp);
-        if (unlocked) {
-          totalAwarded += badge.xp;
-          newlyUnlockedBadges.push(badge.badgeId);
-          transactionsToInsert.push({
-            enrollment_number: enroll,
-            action_type: "achievement_unlock",
-            xp_amount: badge.xp,
-            reference_id: badge.badgeId,
-          });
-        }
-      }
-    }
+   const unlocked = await unlockBadge(
+     enroll,
+     badge.badgeId
+   );
+
+  if (unlocked) {
+    totalAwarded += badge.xp;
+
+    newlyUnlockedBadges.push(badge.badgeId);
+
+    transactionsToInsert.push({
+       enrollment_number: enroll,
+       action_type: "achievement_unlock",
+       xp_amount: badge.xp,
+       reference_id: badge.badgeId,
+    });
+  }
+}
 
     // 5. Insert transactions
-    const { error: insErr } = await supabaseAdmin.from("xp_transactions").insert(transactionsToInsert);
-    if (insErr) throw insErr;
+    const { error: insertError  } = await supabaseAdmin.from("xp_transactions").insert(transactionsToInsert);
+    if (insertError) throw insertError;
 
     // 6. Update student's total_xp
-    const { data: regData } = await supabaseAdmin
-      .from("registrations")
-      .select("id, total_xp")
-      .ilike("enrollment_number", enroll)
-      .single();
+    const { data: xpRows  } = await supabaseAdmin
+      .from("xp_transactions")
+      .select("xp_amount")
+      .eq("enrollment_number", enroll)
 
-    if (regData) {
-      const newTotal = (Number(regData.total_xp || 0)) + totalAwarded;
-      await supabaseAdmin
-        .from("registrations")
-        .update({ total_xp: newTotal })
-        .eq("id", regData.id);
-    }
+    const totalXp = (xpRows || []).reduce(
+  (sum, row) => sum + Number(row.xp_amount || 0),
+  0
+);
+
+   await supabaseAdmin
+     .from("registrations")
+     .update({
+       total_xp: totalXp,
+      })
+     .eq("enrollment_number", enroll);
+
 
     return {
       success: true,
       xpEarned: totalAwarded,
+      totalXp,
       newlyUnlockedBadges,
-      message: `Earned +${totalAwarded} XP!`,
+      message: `Earned +${totalAwarded} XP`,
     };
   } catch (err: any) {
-    console.error("XP awarding system failure:", err);
+    console.error("XP Error", err);
     return { success: false, error: err.message };
   }
 }
@@ -235,18 +254,17 @@ async function resolveRegId(enroll: string): Promise<string | null> {
   const { data } = await supabaseAdmin
     .from("registrations")
     .select("id")
-    .ilike("enrollment_number", enroll)
+    .eq("enrollment_number", enroll)
     .maybeSingle();
-  return (data as any)?.id || null;
+  return data?.id ?? null;
 }
 
 /** Helper to unlock badge and return if it was newly unlocked */
-async function unlockBadge(enroll: string, badgeId: string, xpBonus: number): Promise<boolean> {
+async function unlockBadge(enroll: string, badgeId: string): Promise<boolean> {
   if (!supabaseAdmin) return false;
-  try {
-    const { data: existing } = await supabaseAdmin
+  const { data: existing } = await supabaseAdmin
       .from("student_achievements")
-      .select("badge_id")
+      .select("id")
       .eq("enrollment_number", enroll)
       .eq("badge_id", badgeId)
       .maybeSingle();
@@ -259,10 +277,7 @@ async function unlockBadge(enroll: string, badgeId: string, xpBonus: number): Pr
     });
 
     return !error;
-  } catch {
-    return false;
-  }
-}
+  } 
 
 export async function syncProfileCompletionXp(enrollmentNumber: string) {
   if (!supabaseAdmin) return;
@@ -280,35 +295,40 @@ export async function syncProfileCompletionXp(enrollmentNumber: string) {
 
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("bio, github_username, linkedin_url, avatar_url")
+      .select(`
+        avatar_url,
+        bio,
+        github_username,
+        linkedin_url
+      `)
       .eq("id", regId)
       .maybeSingle();
 
     // 1. Email present (+10 XP)
-    if (reg?.email) {
-      await awardXp(enroll, "profile_email", regId);
+    if (reg?.email?.trim()) {
+      await awardXp(enroll, "profile_email", "profile_email");
     }
 
     // 2. Photo present (+10 XP)
-    if (profile?.avatar_url && profile.avatar_url.trim() !== "") {
-      await awardXp(enroll, "profile_photo", regId);
+    if (profile?.avatar_url?.trim()) {
+      await awardXp(enroll, "profile_photo", "profile_photo");
     }
 
     // 3. Bio present (+10 XP)
-    if (profile?.bio && profile.bio.trim() !== "") {
-      await awardXp(enroll, "profile_bio", regId);
+    if (profile?.bio?.trim()) {
+      await awardXp(enroll, "profile_bio", "profile_bio");
     }
 
     // 4. GitHub Username present (+20 XP)
-    if (profile?.github_username && profile.github_username.trim() !== "") {
-      await awardXp(enroll, "profile_github", regId);
+    if (profile?.github_username?.trim()) {
+      await awardXp(enroll, "profile_github", "profile_github");
     }
 
     // 5. LinkedIn present (+20 XP)
-    if (profile?.linkedin_url && profile.linkedin_url.trim() !== "") {
-      await awardXp(enroll, "profile_linkedin", regId);
+    if (profile?.linkedin_url?.trim()) {
+      await awardXp(enroll, "profile_linkedin", "profile_linkedin");
     }
-  } catch (err) {
-    console.error("Failed to sync profile completion XP:", err);
+  } catch (error) {
+    console.error("Failed to sync profile completion XP:", error);
   }
 }
