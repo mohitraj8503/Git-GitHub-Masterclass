@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 @import "../css/student-dashboard-styles.css";
 
 html {
@@ -6035,3 +6037,47 @@ a {
   margin-right: 4px;
   animation: dot-pulse 1.5s infinite;
 }
+
+/* Certificate Specific Fonts & Styles */
+.font-inter {
+  font-family: var(--font-inter), 'Inter', sans-serif;
+}
+
+.font-plus-jakarta {
+  font-family: var(--font-plus-jakarta-sans), 'Plus Jakarta Sans', sans-serif;
+}
+
+.font-cormorant {
+  font-family: var(--font-cormorant), 'Cormorant Garamond', Georgia, serif;
+}
+
+.font-signature {
+  font-family: var(--font-signature), 'Great Vibes', cursive;
+}
+
+@media print {
+  body {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only-certificate {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+}
+

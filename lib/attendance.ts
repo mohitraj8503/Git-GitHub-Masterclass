@@ -86,7 +86,7 @@ export async function performCheckIn(enrollmentNumber: string, windowId: string)
 
   if (insErr) return { ok: false, status: 500, message: insErr.message };
 
-  const xpResult = await awardXp(enrollmentNumber, "mark_attendance");
+  const xpResult = await awardXp(enrollmentNumber, "mark_attendance", `day_${win.day}`);
 
   return { ok: true, status: 200, message: "Checked in.", log, day: win.day, xpResult };
 }

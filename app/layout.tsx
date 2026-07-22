@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Anton, Plus_Jakarta_Sans, Barlow_Condensed } from "next/font/google";
+import { Anton, Plus_Jakarta_Sans, Barlow_Condensed, Inter, Cormorant_Garamond, Great_Vibes } from "next/font/google";
 import "./globals.css";
 import WebflowClasses from "@/components/WebflowClasses";
 import SiteInteractions from "@/components/SiteInteractions";
@@ -14,7 +14,7 @@ const anton = Anton({
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-plus-jakarta-sans",
   display: "swap",
 });
@@ -23,6 +23,27 @@ const barlowCondensed = Barlow_Condensed({
   subsets: ["latin"],
   weight: ["700", "800"],
   variable: "--font-barlow-condensed",
+  display: "swap",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const cormorantGaramond = Cormorant_Garamond({
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+  variable: "--font-cormorant",
+  display: "swap",
+});
+
+const greatVibes = Great_Vibes({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-signature",
   display: "swap",
 });
 
@@ -62,7 +83,7 @@ export default function RootLayout({
       data-wf-page="664af7bf6430c50e0ebf6c48"
       data-wf-site="664af7bf6430c50e0ebf6c3f"
       lang="en"
-      className={`w-mod-js ${anton.variable} ${plusJakartaSans.variable} ${barlowCondensed.variable}`}
+      className={`w-mod-js ${anton.variable} ${plusJakartaSans.variable} ${barlowCondensed.variable} ${inter.variable} ${cormorantGaramond.variable} ${greatVibes.variable}`}
       suppressHydrationWarning
     >
       <head>

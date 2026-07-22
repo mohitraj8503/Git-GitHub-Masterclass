@@ -1,18 +1,15 @@
 [
   {
-    "id": "a1",
-    "title": "Personal Portfolio Website Layout",
-    "description": "Initialize a local Git repository, commit your portfolio index.html layout, and push it to GitHub. Make sure it's public and visible.",
-    "due_date": "2026-07-10T17:43:26.251Z",
-    "max_marks": 10,
-    "created_at": "2026-07-08T17:43:26.251Z"
-  },
-  {
     "id": "a2",
     "title": "GitHub Branching & Merging Conflict Resolving",
-    "description": "Create a feature-branch, introduce a change in main, and merge the branch to resolve a conflict manually in VS Code.",
-    "due_date": "2026-07-12T17:43:26.251Z",
+    "description": "Create a feature branch, introduce a change in main, and merge the branch to resolve a conflict manually in VS Code. Submit the GitHub repository link or upload a screenshot of your resolved conflict in VS Code.",
+    "due_date": "2026-07-20T23:59:59.000Z",
     "max_marks": 15,
+    "submission_requirements": {
+      "live_url": false,
+      "github_link": true,
+      "attachment": true
+    },
     "created_at": "2026-07-08T17:43:26.251Z"
   },
   {

@@ -7,7 +7,7 @@ export const XP_RULES: Record<string, number> = {
    download_slides: 10, // alias
    open_notes: 5,
    submit_github_repo: 30,
-   push_github: 20, // alias
+   push_github: 30, // alias
    submit_assignment: 50,
    complete_assignment: 50, // alias
    early_submission_bonus: 20,
@@ -15,7 +15,7 @@ export const XP_RULES: Record<string, number> = {
    complete_daily_quiz: 25,
    quiz_100_percent_bonus: 10,
    workshop_feedback: 15,
-   fill_feedback: 10, // alias
+   fill_feedback: 15, // alias
    daily_completion_bonus: 50,
    profile_email: 10,
    profile_photo: 10,
@@ -38,7 +38,7 @@ export const ACHIEVEMENTS: Record<string, { title: string; xp: number; badgeId: 
   attend_all_7_days: { title: "Attend All 7 Days", xp: 100, badgeId: "perfect_attendance_badge" },
   submit_all_assignments: { title: "Submit All Assignments", xp: 100, badgeId: "assignment_master_badge" },
   complete_all_daily_tasks: { title: "Workshop Warrior", xp: 150, badgeId: "workshop_warrior_badge" },
-  complete_workshop: { title: "Complete Entire Workshop", xp: 250, badgeId: "git_github_master_badge" },
+  complete_workshop: { title: "Git & GitHub Master", xp: 250, badgeId: "git_github_master_badge" },
 };
 
 function normalizeEnroll(enroll: string) {
@@ -196,26 +196,107 @@ export async function awardXp(
           });
         }
       }
+
+      // 4a. submit_all_assignments check (assignment_master_badge)
+      const { data: assignments } = await supabaseAdmin.from("assignments").select("id");
+      const totalAssignments = (assignments || []).length;
+
+      const { data: submissions } = await supabaseAdmin
+        .from("xp_transactions")
+        .select("reference_id")
+        .eq("enrollment_number", enroll)
+        .eq("action_type", "submit_assignment");
+      
+      const submittedIds = new Set((submissions || []).map((s: any) => s.reference_id));
+      if (referenceId) {
+        submittedIds.add(referenceId);
+      }
+
+      if (totalAssignments > 0 && submittedIds.size >= totalAssignments) {
+        const badge = ACHIEVEMENTS.submit_all_assignments;
+        const unlocked = await unlockBadge(enroll, badge.badgeId, badge.xp);
+        if (unlocked) {
+          totalAwarded += badge.xp;
+          newlyUnlockedBadges.push(badge.badgeId);
+          transactionsToInsert.push({
+            enrollment_number: enroll,
+            action_type: "achievement_unlock",
+            xp_amount: badge.xp,
+            reference_id: badge.badgeId,
+          });
+        }
+      }
     }
 
-    // 5. Insert transactions
+    // 4b. complete_all_daily_tasks check (workshop_warrior_badge)
+    if (actionType === "daily_completion_bonus") {
+      const { data: completions } = await supabaseAdmin
+        .from("xp_transactions")
+        .select("reference_id")
+        .eq("enrollment_number", enroll)
+        .eq("action_type", "daily_completion_bonus");
+
+      const completionDates = new Set((completions || []).map((c: any) => c.reference_id));
+      if (referenceId) {
+        completionDates.add(referenceId);
+      }
+
+      if (completionDates.size >= 7) {
+        const badge = ACHIEVEMENTS.complete_all_daily_tasks;
+        const unlocked = await unlockBadge(enroll, badge.badgeId, badge.xp);
+        if (unlocked) {
+          totalAwarded += badge.xp;
+          newlyUnlockedBadges.push(badge.badgeId);
+          transactionsToInsert.push({
+            enrollment_number: enroll,
+            action_type: "achievement_unlock",
+            xp_amount: badge.xp,
+            reference_id: badge.badgeId,
+          });
+        }
+      }
+    }
+
+    // 4c. complete_workshop check (git_github_master_badge)
+    // Run this if perfect_attendance_badge or assignment_master_badge is unlocked
+    const perfectAttendanceUnlocked = newlyUnlockedBadges.includes("perfect_attendance_badge");
+    const assignmentMasterUnlocked = newlyUnlockedBadges.includes("assignment_master_badge");
+
+    if (perfectAttendanceUnlocked || assignmentMasterUnlocked) {
+      const { data: achievementsList } = await supabaseAdmin
+        .from("student_achievements")
+        .select("badge_id")
+        .eq("enrollment_number", enroll);
+      const earnedBadgesList = (achievementsList || []).map((a: any) => a.badge_id);
+      const allBadges = [...earnedBadgesList, ...newlyUnlockedBadges];
+
+      if (allBadges.includes("perfect_attendance_badge") && allBadges.includes("assignment_master_badge")) {
+        const badge = ACHIEVEMENTS.complete_workshop;
+        const unlocked = await unlockBadge(enroll, badge.badgeId, badge.xp);
+        if (unlocked) {
+          totalAwarded += badge.xp;
+          newlyUnlockedBadges.push(badge.badgeId);
+          transactionsToInsert.push({
+            enrollment_number: enroll,
+            action_type: "achievement_unlock",
+            xp_amount: badge.xp,
+            reference_id: badge.badgeId,
+          });
+        }
+      }
+    }
+
+    // 5. Insert transactions (handle unique constraint violation)
     const { error: insErr } = await supabaseAdmin.from("xp_transactions").insert(transactionsToInsert);
-    if (insErr) throw insErr;
-
-    // 6. Update student's total_xp
-    const { data: regData } = await supabaseAdmin
-      .from("registrations")
-      .select("id, total_xp")
-      .ilike("enrollment_number", enroll)
-      .single();
-
-    if (regData) {
-      const newTotal = (Number(regData.total_xp || 0)) + totalAwarded;
-      await supabaseAdmin
-        .from("registrations")
-        .update({ total_xp: newTotal })
-        .eq("id", regData.id);
+    if (insErr) {
+      if (insErr.code === '23505') {
+        return { success: true, alreadyCompleted: true, xpEarned: 0, message: "Action already rewarded (unique constraint)." };
+      }
+      throw insErr;
     }
+
+    // 6. Update student's total_xp atomically via RPC
+    await supabaseAdmin.rpc('increment_xp', { p_enrollment: enroll, p_amount: totalAwarded });
 
     return {
       success: true,
