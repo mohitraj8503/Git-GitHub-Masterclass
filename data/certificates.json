@@ -1882,8 +1882,8 @@
   {
     "certificate_id": "GT/AJU250935",
     "certificateId": "GT/AJU250935",
-    "recipient_name": "ROHIT kumar8",
-    "recipientName": "ROHIT kumar8",
+    "recipient_name": "Rohit Kumar",
+    "recipientName": "Rohit Kumar",
     "enrollment_id": "AJU/250935",
     "enrollmentId": "AJU/250935",
     "rawEnrollmentId": "AJU250935",
@@ -1897,7 +1897,8 @@
     ],
     "completion_date": "2026-07-23T00:00:00Z",
     "completionDate": "2026-07-23T00:00:00Z",
-    "status": "VALID"
+    "status": "VALID",
+    "updated_at": "2026-07-23T06:33:10.237Z"
   },
   {
     "certificate_id": "GT/AJU250878",
