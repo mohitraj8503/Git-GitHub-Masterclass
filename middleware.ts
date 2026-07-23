@@ -5,16 +5,22 @@ import { getSession } from "@/lib/session";
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
-  // Protect admin routes
-  if (path.startsWith("/admin") || path.startsWith("/api/admin")) {
-    // Exclude login page or public assets if any inside admin directory, but they are not there
+  // Protect admin routes and Certificate Studio
+  if (
+    path.startsWith("/admin") ||
+    path.startsWith("/api/admin") ||
+    path.startsWith("/certificate")
+  ) {
     const session = await getSession(request);
 
     if (!session || session.role !== "admin") {
       if (path.startsWith("/api/")) {
-        return NextResponse.json({ success: false, error: "Unauthorized: Admins only." }, { status: 401 });
+        return NextResponse.json(
+          { success: false, error: "Unauthorized: Admins only." },
+          { status: 401 }
+        );
       }
-      // Redirect to login page
+      // Redirect unauthenticated/non-admin users to login page
       const loginUrl = new URL("/login", request.url);
       return NextResponse.redirect(loginUrl);
     }
@@ -23,10 +29,12 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-// See "Matching Paths" below to learn more
+// Matching Paths
 export const config = {
   matcher: [
     "/admin/:path*",
     "/api/admin/:path*",
+    "/certificate",
+    "/certificate/:path*",
   ],
 };

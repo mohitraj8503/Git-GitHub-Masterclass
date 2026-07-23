@@ -6056,28 +6056,22 @@ a {
 }
 
 @media print {
-  body {
-    background: transparent !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-  .no-print {
-    display: none !important;
-  }
-  .print-only-certificate {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    transform: none !important;
-    box-shadow: none !important;
-  }
   @page {
     size: A4 landscape;
     margin: 0;
+  }
+  html, body {
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 297mm !important;
+    height: 210mm !important;
+    overflow: hidden !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .no-print {
+    display: none !important;
   }
 }
 

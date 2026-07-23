@@ -1,0 +1,190 @@
+SL No | Group | Roll No | Enrollment No | Name
+--------------------------------------------------------------------------------
+1 | CSE | N/A | AJU/250930 | Aashish kumar
+2 | CSE | N/A | AJU/250562 | Abhay kumar sharma
+3 | B.tech CSE ds&ai | N/A | AJU252464 | Abhinav Jaiswal
+4 | btech AIDS | N/A | AJU/252886 | Abhinav Mahato
+5 | B.Tech  AI&DS | N/A | AJU/252464 | ABHINAV PRAKASH
+6 | CSE | N/A | AJU/252637 | Abhishek poddar
+7 | BCA | N/A | AJU/241489 | Achyut kumar Pathak
+8 | BCA | N/A | AJU/251703 | Adarsh anand
+9 | CSE | N/A | AJU/251592 | Aditi kumari
+10 | CSE | N/A | AJU/252252 | Aditi Ranjan
+11 | BCA | N/A | AJU/240489 | Aditya kumar
+12 | BCA | N/A | AJU240489 | Aditya Kumar
+13 | B.tech (cse) | N/A | AJU/251954 | Aditya Kumar
+14 | Btech | N/A | AJU/251000 | ADITYA KUMAR
+15 | B.tech cse | N/A | AJU/250834 | Aditya Kumar Gond
+16 | BCA | N/A | AJU/251861 | Aditya Kumar Singh
+17 | CSE | N/A | AJU/250446 | Aditya Raj
+18 | BTECH CSE | N/A | AJU/252620 | Aditya Raj Bose
+19 | CSE | N/A | AJU/230786 | Aditya Sen
+20 | AIDS | N/A | AJU/242100 | Aishwarya sinha
+21 | CSE | N/A | AJU/251988 | Akshay Pratap Singh
+22 | B.tech | N/A | AJU252023 | Alok Ranjan
+23 | CSE | N/A | AJU/250530 | Aman Raj
+24 | B.Tech CSE | N/A | AJU/252417 | Amit Kumar Rajwar
+25 | CSE | N/A | AJU/252089 | Amit Kumar Singh
+26 | B.TECH AI&DS | N/A | AJU/251221 | Amrit Ranjan
+27 | CSE | N/A | AJU/252771 | Anamika
+28 | CSE | N/A | AJU/252174 | Aniket Dutta
+29 | AIDS | N/A | AJU/251472 | Anish Kumar Mahato
+30 | CSE | N/A | AJU/251014 | Anisha Kumari
+31 | CSE | N/A | AJU/241026 | Ankit Kumar
+32 | CSE | N/A | AJU/251839 | Ankit Kumar
+33 | CSE | N/A | AJU/240790 | Ankit Raj
+34 | CSE | N/A | AJU/251528 | Ankit ray
+35 | CSE | N/A | AJU/252666 | Ankita Kumari
+36 | CSE | N/A | AJU/250608 | ANKUR GHOSH
+37 | CSE | N/A | AJU/250760 | Ankush Kumar Thakur
+38 | CSE | N/A | AJU/251387 | Anupam Raj
+39 | B.TECH (CSE) | N/A | AJU/251984 | Anurag Kumar
+40 | CSE | N/A | AJU/251450 | Anushka Bhardwaj
+41 | CSE | N/A | AJU/251764 | Anushka patel
+42 | CSE | N/A | AJU/251885 | Arpita Aarushi Lala
+43 | B.tech cse | N/A | AJU/251931 | Arun kumar
+44 | cse | N/A | Aju/252172 | arup kayal
+45 | CSE | N/A | AJU/252423 | Ashish Kumar
+46 | CSE | N/A | AJU/252436 | Ashish Raj
+47 | AIDS | N/A | AJU/252078 | Ashutosh Kumar Sharma
+48 | CSE | N/A | AJU/251280 | Atufa khan
+49 | CSE | N/A | AJU/252558 | Ayush kumar
+50 | AIDS | N/A | AJU/251740 | Ayush kumar
+51 | Btech AI & DS | N/A | AJU/252009 | Ayush Kumar Singh
+52 | CSE | N/A | AJU/252519 | Ayush Sharma
+53 | Diploma CSE | N/A | AJU/240153 | Ayush Singh
+54 | B.TECH CSE | N/A | AJU/252456 | Ayushi Kumari
+55 | AIDS | N/A | AJU/251907 | Ayushman Mandal
+56 | CSE | N/A | AJU/252424 | Deepak Kumar
+57 | AIDS | N/A | AJU/250193 | G.omkeswari
+58 | AIDS | N/A | AJU/250913 | G.omkeswari
+59 | CSE | N/A | AJU/250470 | Ganesh karek
+60 | B tech CSE | N/A | AJU251935 | GOLU YADAV
+61 | B TECH AI and DS with IBM | N/A | Arka Jain University | Harsh Nayan
+62 | AIDS | N/A | AJU/251999 | HARSH NAYAN
+63 | Diploma CSE | N/A | Aju/242226 | Harsh Pathak
+64 | Diploma cse | N/A | Aju/241900 | Harshita Kumari Singh
+65 | B.Tech CSE | N/A | AJU/251442 | Hemant kumar
+66 | CSE | N/A | AJU/250717 | Hitesh Kumar Mahato
+67 | CSE | N/A | AJU/250186 | Hritik kumar Mishra
+68 | AIDS | N/A | AJU/252105 | Humaira kayenat
+69 | CSE | N/A | AJU/251669 | Ishika Verma
+70 | Btech AI & DS | N/A | AJU/250475 | Jaisleen kaur
+71 | AIDS | N/A | AJU/252075 | Janvi Sinha
+72 | CSE | N/A | AJU/250434 | K.Sri Pavani
+73 | CSE | N/A | AJU/250926 | Kashish kumari
+74 | AIDS | N/A | AJU/251694 | Keshav Chourasia
+75 | CSE | N/A | AJU/252058 | Keshav Kumar
+76 | B.tech cse | N/A | AJU/250681 | Keshav kumar singh
+77 | CSE | N/A | AJU/250671 | KESHAV KUMAR SINGH
+78 | BCA | N/A | AJU/240848 | Khushbu Kumari
+79 | Dipoma CSE | N/A | AJU/240490 | Kritika Mohanty
+80 | AIDS | N/A | AJU/251580 | Kritika Raj
+81 | CSE | N/A | AJU/240350 | mamta kumari
+82 | CSE | N/A | AJU/251162 | Md Afridi
+83 | AIDS | N/A | AJU/252821 | Md Naseeb Khan
+84 | CSE | N/A | AJU/252025 | MD WASIM ANSARI
+85 | B.Tech. AIDS | N/A | AJU/250779 | Mohammad Kamran Alvi
+86 | B tech cse | N/A | AJU/252596 | Mohit kumar sahu
+87 | CSE | N/A | AJU/250821 | Mohit prakash
+88 | B Tech | N/A | AJU/250609 | Mohit Raj
+89 | AIDS | N/A | AJU/250289 | Mohit Verma
+90 | BCA | N/A | AJU/241499 | Mousumi Guin
+91 | CSE | N/A | AJU/241262 | Mukesh Kumar
+92 | CSE | N/A | AJU/252098 | Mukesh Kumar yadav
+93 | BCA | N/A | AJU/240022 | Mukund kumar
+94 | CSE | N/A | AJU/250238 | Murli Manohar Kumar
+95 | CSE | N/A | AJU/250637 | Muskan kumari
+96 | AIDS | N/A | AJU/251025 | Naina kumari
+97 | CSE | N/A | AJU/250195 | Narpati Singh Melgandi
+98 | BCA | N/A | AJU/250141 | Neetu Ekka
+99 | CSE | N/A | AJU/250803 | Neha Kumari
+100 | CSE | N/A | AJU/250922 | Neha Maity
+101 | CSE | N/A | AJU/252094 | Nikhil Kumar
+102 | CSE | N/A | AJU/251378 | Nikhil thakur
+103 | CSE | N/A | AJU/250099 | Niklesh kumar Sharma
+104 | CSE | N/A | AJU/250778 | Nilesh kumar
+105 | CSE | N/A | AJU/250231 | Nitesh Kumar
+106 | CSE | N/A | AJU/250915 | Nitesh Kumar Yadav
+107 | CSE | N/A | AJU/250120 | Nitin kumar
+108 | CSE | N/A | AJU/252374 | Nyasha Kumari
+109 | AIDS | N/A | AJU/250564 | Pallavi Kumari
+110 | CSE | N/A | AJU/250607 | Pawan Tudu
+111 | CSE | N/A | AJU/250912 | Payal Kumari
+112 | CSE | N/A | AJU/250887 | Pihu Kumari
+113 | CSE | N/A | AJU/250932 | Pinkesh Kumar jha
+114 | CSE | N/A | AJU/250432 | Piyush Kumar
+115 | B.TECH | N/A | AJU/242409 | PRAMOD KUMAR SAHU
+116 | CSE | N/A | AJU/250499 | Pranshu Kumar Singh
+117 | CSE | N/A | AJU/250660 | Prashant Srivastava
+118 | CSE | N/A | AJU/251426 | Prem Kumar Bauri
+119 | Other | N/A | AJU/252565 | Priya Kumari
+120 | CSE | N/A | AJU/250430 | Priyanshu kumar
+121 | AIDS | N/A | AJU/251734 | Priyanshu Sen
+122 | BCA | N/A | AJU/251229 | RAHUL KUMAR
+123 | BCA | N/A | AJU251229 | RAHUL KUMAR
+124 | AIDS | N/A | AJU/251641 | Rahul Kumar Mandal
+125 | CSE | N/A | AJU/252383 | RAHUL KUMAR NAYAK
+126 | BCA(cyber security) | N/A | AJU/250682 | Raj kumar bera
+127 | B.TECH CSE - 5th SEM | N/A | AJU/242411 | RAJ KUMAR SETH
+128 | CSE | N/A | AJU/252363 | Raju kapardar
+129 | BCA | N/A | AJU/251630 | Ranjan Singh
+130 | CSE | N/A | AJU/250233 | Ravi kumar chaurasiya
+131 | CSE | N/A | AJU/251107 | Reetam Bera
+132 | Btech cse | N/A | AJU/251428 | Ridhi Jaiswal
+133 | CSE | N/A | AJU/250591 | Rishabh Deo Tiwari
+134 | AIDS | N/A | AJU/250878 | Rishika kumari
+135 | CSE | N/A | AJU/252755 | Rishikesh
+136 | CSE | N/A | AJU/252594 | Rishu Mehta
+137 | CSE | N/A | AJU/251386 | RITESH KUMAR
+138 | B.tech-cse | N/A | AJU/252142 | Ritika kumari
+139 | CSE | N/A | AJU/241015 | Rohit Kumar
+140 | CSE | N/A | AJU/250845 | Rohit Kumar Das
+141 | CSE | N/A | AJU/250935 | ROHIT kumar8
+142 | CSE | N/A | AJU/251030 | Rupa Kumari
+143 | CSE | N/A | AJU/252156 | Saba Naaz
+144 | CSE | N/A | AJU/251351 | Sabyasachi Kumar Majhi
+145 | CSE | N/A | AJU/250175 | sagar kumar jha
+146 | CSE | N/A | AJU/252327 | SATYAM KUMAR SINGH
+147 | CSE | N/A | AJU/250824 | Sejal Kumari
+148 | CSE | N/A | AJU/250928 | Senha kumari
+149 | CSE | N/A | AJU/252422 | Sephali sharma
+150 | CSE | N/A | AJU/250006 | Shashank Kumar Singh
+151 | BTECH CSE | N/A | aju251894 | Shashank shekhar
+152 | B.Tech(CSE) | N/A | AJU/251983 | Shekhar Kumar Saw
+153 | CSE | N/A | AJU/251808 | SHIBS BEHERA
+154 | AIDS | N/A | AJU/241621 | shilpi thakur
+155 | CSE | N/A | AJU/250118 | Shinjay Saha
+156 | B.Tech CSE | N/A | AJU/250988 | Shivam kumar
+157 | CSE | N/A | AJU/250514 | Shivam Kumar
+158 | CSE | N/A | AJU/250292 | SHIVAM KUMAR
+159 | B.Tech AI and DS | N/A | AJU/251335 | Shivam Purty
+160 | B.Tech cse | N/A | AJU/252457 | Shourya Barnwal
+161 | AIDS | N/A | AJU/252692 | Shreya Sharma
+162 | AIDS | N/A | AJU/252812 | Shristi kumari
+163 | BCA | N/A | AJU/252239 | Shruti Kumari
+164 | BCA | N/A | AJU/251176 | Shubham
+165 | CSE | N/A | AJU/230877 | Shubham Thakur
+166 | B.TECH CSE | N/A | AJU/252125 | SHYAM KUMAR VERMA
+167 | AIDS | N/A | AJU/251452 | Simiya Khatoon
+168 | CSE | N/A | AJU/250898 | Simran gupta
+169 | B TECH CSE | N/A | Aju/252793 | Sk simaal
+170 | CSE | N/A | AJU/250328 | SONU KUMAR GUPTA
+171 | b tech. ai and ds | N/A | aju/251316 | Soumya Mishra
+172 | CSE | N/A | AJU/250254 | Sourav Jaiswal
+173 | CSE | N/A | AJU/251711 | SUDITI SRIVASTAVA
+174 | CSE | N/A | AJU/252008 | Suhana Jha
+175 | B.Tech CSE | N/A | AJU241263 | SUJAY SINGH
+176 | CSE | N/A | AJU/252337 | Sujit kumar verma
+177 | CSE | N/A | AJU/252186 | Suman Kumari
+178 | CSE | N/A | AJU/251635 | Sumit Bharti
+179 | CSE | N/A | AJU/250056 | Suraj kumar
+180 | AIDS | N/A | AJU/250201 | Surjo Banerjee
+181 | CSE | N/A | AJU/252885 | Sushant kumar sahu
+182 | B.Tech CSE | N/A | AJU/250433 | Swayam Sourav
+183 | CSE | N/A | AJU/250357 | Tanya kumari
+184 | CSE | N/A | AJU/251032 | Tripurari kumar jha
+185 | BCA | N/A | AJU/252280 | Ujjwal Kumar Mishra
+186 | AIDS | N/A | AJU/251455 | UMAIR RAZA
+187 | CSE | N/A | AJU/252178 | Vijay Kumar Mahato
+188 | CSE | N/A | AJU/252815 | Yashwant Rai

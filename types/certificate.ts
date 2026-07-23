@@ -59,6 +59,7 @@ export interface CertificateData {
   qrCodeUrl: string;
   signatures: SignatureItem[];
   skills?: SkillItem[];
+  winnerRank?: number;
 }
 
 export interface CertificateProps {

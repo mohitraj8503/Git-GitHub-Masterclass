@@ -17,7 +17,6 @@ export default function Navbar() {
             <AssetImage src="/images/arka-jain-logo-wide.png" loading="lazy" alt="Arka Jain University" className="arka-jain-header-logo" />
           </a>
           <div className="nav-buttons-wrapper">
-            <a href="/certificate" className="button secondary w-button" style={{ borderColor: "#F6A700", color: "#F6A700" }}>Certificate Studio</a>
             <a href="https://discord.com/events/1526478795857592401/1526481750807674881" target="_blank" className="button secondary w-button">Join Community</a>
             <ShuffleCapsule />
           </div>

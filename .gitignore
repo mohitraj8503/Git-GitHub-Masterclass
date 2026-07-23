@@ -41,3 +41,8 @@ Thumbs.db
 # zip 
 .zip
 .tar
+*.zip
+scratch/
+*.xlsx
+eligibility-report.json
+test.js

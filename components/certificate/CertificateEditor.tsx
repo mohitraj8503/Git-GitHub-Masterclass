@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import { CertificateData } from '@/types/certificate';
 import {
   downloadCertificatePNG,
-  downloadCertificatePDF,
   printCertificate,
+  type CertificateRegistrationData,
 } from '@/lib/certificateExport';
 
 interface CertificateEditorProps {
@@ -22,10 +22,12 @@ export const CertificateEditor: React.FC<CertificateEditorProps> = ({
   onScaleChange,
 }) => {
   const [isExporting, setIsExporting] = useState(false);
+  const [isIssuing, setIsIssuing] = useState(false);
+  const [issueMessage, setIssueMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const handleInputChange = (
     field: keyof CertificateData,
-    value: string
+    value: any
   ) => {
     onChange({ ...data, [field]: value });
   };
@@ -42,18 +44,55 @@ export const CertificateEditor: React.FC<CertificateEditorProps> = ({
 
   const handleDownloadPNG = async () => {
     setIsExporting(true);
+    const certData: CertificateRegistrationData = {
+      recipientName: data.recipientName,
+      enrollmentId: data.enrollmentId || '',
+      completionDate: data.completionDate,
+      customCertificateId: data.certificateId || undefined,
+    };
     await downloadCertificatePNG({
       fileName: `Certificate_${data.recipientName.replace(/\s+/g, '_')}.png`,
+      certData,
     });
     setIsExporting(false);
   };
 
-  const handleDownloadPDF = async () => {
-    setIsExporting(true);
-    await downloadCertificatePDF({
-      fileName: `Certificate_${data.recipientName.replace(/\s+/g, '_')}.pdf`,
-    });
-    setIsExporting(false);
+  const handleIssueCertificate = async () => {
+    if (!data.recipientName?.trim() || !data.enrollmentId?.trim()) {
+      setIssueMessage({ type: 'error', text: 'Please enter Recipient Name and Enrollment ID.' });
+      return;
+    }
+
+    setIsIssuing(true);
+    setIssueMessage(null);
+
+    try {
+      const res = await fetch('/api/certificates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipientName: data.recipientName,
+          enrollmentId: data.enrollmentId,
+          completionDate: data.completionDate,
+          customCertificateId: data.certificateId || undefined,
+          winnerRank: data.winnerRank || undefined,
+        }),
+      });
+
+      const result = await res.json();
+      if (result.success) {
+        setIssueMessage({
+          type: 'success',
+          text: `🎉 Certificate Issued Successfully for ${data.recipientName}! Live on /verify and active in student dashboard.`,
+        });
+      } else {
+        setIssueMessage({ type: 'error', text: result.error || 'Failed to issue certificate.' });
+      }
+    } catch (err: any) {
+      setIssueMessage({ type: 'error', text: 'Network error issuing certificate.' });
+    } finally {
+      setIsIssuing(false);
+    }
   };
 
   return (
@@ -91,7 +130,7 @@ export const CertificateEditor: React.FC<CertificateEditorProps> = ({
             Certificate Studio
           </h2>
           <p style={{ fontSize: '12px', color: '#F59E0B', fontWeight: 600, margin: '2px 0 0 0' }}>
-            Git & GitHub Masterclass Editor
+            Git &amp; GitHub Masterclass Editor
           </p>
         </div>
         <span
@@ -105,11 +144,11 @@ export const CertificateEditor: React.FC<CertificateEditorProps> = ({
             border: '1px solid rgba(245, 158, 11, 0.3)',
           }}
         >
-          99.9% Accurate
+          Admin Console
         </span>
       </div>
 
-      {/* Export Action Buttons */}
+      {/* Export & Issue Actions */}
       <div
         style={{
           padding: '20px',
@@ -121,8 +160,26 @@ export const CertificateEditor: React.FC<CertificateEditorProps> = ({
         }}
       >
         <label style={{ fontSize: '11px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          Export Options (300 DPI Ready)
+          Admin Actions &amp; Export
         </label>
+
+        {issueMessage && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: '10px',
+              fontSize: '12px',
+              fontWeight: 700,
+              backgroundColor: issueMessage.type === 'success' ? '#DCFCE7' : '#FEE2E2',
+              color: issueMessage.type === 'success' ? '#15803D' : '#B91C1C',
+              border: issueMessage.type === 'success' ? '1px solid #86EFAC' : '1px solid #FCA5A5',
+              lineHeight: 1.4,
+            }}
+          >
+            {issueMessage.text}
+          </div>
+        )}
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
           <button
             onClick={handleDownloadPNG}
@@ -156,22 +213,26 @@ export const CertificateEditor: React.FC<CertificateEditorProps> = ({
             </svg>
             PNG Image
           </button>
+
+          {/* Issue Certificate Button */}
           <button
-            onClick={handleDownloadPDF}
-            disabled={isExporting}
+            onClick={handleIssueCertificate}
+            disabled={isIssuing}
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
-              backgroundColor: '#1E293B',
+              backgroundColor: '#16A34A',
               color: '#FFFFFF',
-              fontWeight: 700,
+              fontWeight: 800,
               padding: '10px 14px',
               borderRadius: '12px',
               fontSize: '13px',
               border: 'none',
-              cursor: isExporting ? 'not-allowed' : 'pointer',
+              cursor: isIssuing ? 'not-allowed' : 'pointer',
+              boxShadow: '0 4px 12px rgba(22, 163, 74, 0.35)',
+              transition: 'background 0.2s',
             }}
           >
             <svg
@@ -180,14 +241,15 @@ export const CertificateEditor: React.FC<CertificateEditorProps> = ({
               height="16"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="2.5"
               viewBox="0 0 24 24"
             >
-              <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            PDF Document
+            {isIssuing ? 'Issuing...' : '📜 Issue Certificate'}
           </button>
         </div>
+
         <button
           onClick={printCertificate}
           style={{
@@ -289,6 +351,34 @@ export const CertificateEditor: React.FC<CertificateEditorProps> = ({
           </div>
           <div>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
+              Certificate Rank / Winner Badge
+            </label>
+            <select
+              value={data.winnerRank || 0}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                handleInputChange('winnerRank', val > 0 ? val : undefined);
+              }}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                backgroundColor: '#F8FAFC',
+                border: '1px solid #CBD5E1',
+                borderRadius: '10px',
+                fontSize: '14px',
+                fontWeight: 600,
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            >
+              <option value={0}>Standard (GitHub Octocat Logo)</option>
+              <option value={1}>1st Winner (Gold Medal Badge)</option>
+              <option value={2}>2nd Winner (Silver Medal Badge)</option>
+              <option value={3}>3rd Winner (Bronze Medal Badge)</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
               Enrollment ID (Generates Credential ID: GT/&lt;EnrollmentID&gt;)
             </label>
             <input
@@ -350,7 +440,7 @@ export const CertificateEditor: React.FC<CertificateEditorProps> = ({
                 outline: 'none',
                 boxSizing: 'border-box',
               }}
-              placeholder="e.g. 18TH MAY, 2026"
+              placeholder="e.g. 23 JULY 2026"
             />
           </div>
         </div>
