@@ -3141,7 +3141,7 @@ See you there — let's start building! 🚀`);
           };
 
           // Pre-sorting leaderboard students (breaking ties with attendance)
-          const sortedLeaderboard = students
+          const tempLeaderboard = students
             .slice()
             .sort((a: any, b: any) => {
               const xpDiff = (b.total_xp || 0) - (a.total_xp || 0);
@@ -3150,6 +3150,21 @@ See you there — let's start building! 🚀`);
               const attB = getStudentAttendance(b).presentDaysCount;
               return attB - attA;
             });
+
+          // Force Pihu Kumari (AJU/250887 or 250887) to be exactly 3rd
+          const pihuIndex = tempLeaderboard.findIndex((s: any) => {
+            const enroll = (s.enrollmentNumber || s.enrollment_number || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+            return enroll === "250887" || enroll === "AJU250887";
+          });
+          if (pihuIndex >= 0) {
+            const [pihuRecord] = tempLeaderboard.splice(pihuIndex, 1);
+            const targetXp = tempLeaderboard[1] ? tempLeaderboard[1].total_xp - 10 : 300;
+            pihuRecord.total_xp = targetXp;
+            pihuRecord.totalXp = targetXp;
+            tempLeaderboard.splice(2, 0, pihuRecord);
+          }
+
+          const sortedLeaderboard = tempLeaderboard;
 
           const filteredLeaderboard = sortedLeaderboard.filter((s: any) => {
             const query = leaderboardSearch.toLowerCase().trim();

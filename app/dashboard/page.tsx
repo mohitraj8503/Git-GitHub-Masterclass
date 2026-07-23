@@ -933,10 +933,24 @@ export default function DashboardPage() {
     }
   }
 
-  const leaderboard = Array.from(leaderboardMap.values()).sort((a, b) => {
+  const sortedList = Array.from(leaderboardMap.values()).sort((a, b) => {
     if (b.xp !== a.xp) return b.xp - a.xp;
     return (b.attendanceCount || 0) - (a.attendanceCount || 0);
   });
+
+  // Force Pihu Kumari (AJU/250887 or 250887) to be exactly 3rd
+  const pihuIndex = sortedList.findIndex(s => {
+    const enroll = (s.enrollmentNumber || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    return enroll === "250887" || enroll === "AJU250887";
+  });
+  if (pihuIndex >= 0) {
+    const [pihuRecord] = sortedList.splice(pihuIndex, 1);
+    const targetXp = sortedList[1] ? sortedList[1].xp - 10 : 300;
+    pihuRecord.xp = targetXp;
+    sortedList.splice(2, 0, pihuRecord);
+  }
+
+  const leaderboard = sortedList;
 
   const notifications = [
     ...assignments.map((a: any) => ({
