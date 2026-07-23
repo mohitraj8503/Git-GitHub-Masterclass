@@ -227,6 +227,7 @@ export default function CertificationTab({
       certificateId: status.certificate.certificateId,
       completionDate: "23 JULY 2026",
       winnerRank: status.certificate.winnerRank ? Number(status.certificate.winnerRank) : undefined,
+      description: status.certificate.description || defaultCertificateData.description,
     };
 
     const certRegData: CertificateRegistrationData = {

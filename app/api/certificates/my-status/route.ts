@@ -52,26 +52,30 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Load local JSON description if present
+  let localRecord: any = null;
+  const certsJsonPath = path.join(process.cwd(), "data", "certificates.json");
+  if (fs.existsSync(certsJsonPath)) {
+    try {
+      const certsList: any[] = JSON.parse(
+        fs.readFileSync(certsJsonPath, "utf8")
+      );
+      localRecord = certsList.find(
+        (c) =>
+          c.rawEnrollmentId === normId ||
+          normalizeEnrollmentId(c.enrollmentId || c.enrollment_id || "") ===
+            normId ||
+          c.certificateId === certId ||
+          c.certificate_id === certId
+      );
+    } catch (e) {
+      console.error("[my-status] Error reading local certificates for description:", e);
+    }
+  }
+
   // 2. Fallback to local data/certificates.json
   if (!certificate) {
-    const certsJsonPath = path.join(process.cwd(), "data", "certificates.json");
-    if (fs.existsSync(certsJsonPath)) {
-      try {
-        const certsList: any[] = JSON.parse(
-          fs.readFileSync(certsJsonPath, "utf8")
-        );
-        certificate = certsList.find(
-          (c) =>
-            c.rawEnrollmentId === normId ||
-            normalizeEnrollmentId(c.enrollmentId || c.enrollment_id || "") ===
-              normId ||
-            c.certificateId === certId ||
-            c.certificate_id === certId
-        );
-      } catch (e) {
-        console.error("[my-status] Error reading certificates.json:", e);
-      }
-    }
+    certificate = localRecord;
   }
 
   // If student IS eligible and has a certificate
@@ -105,6 +109,7 @@ export async function GET(req: NextRequest) {
         issuedAt: certificate.issued_at || certificate.issuedAt || "2026-07-23T00:00:00Z",
         status: certificate.status || "VALID",
         winnerRank: winnerRank || undefined,
+        description: certificate.description || localRecord?.description || undefined,
       },
     });
   }

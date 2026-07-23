@@ -30,7 +30,7 @@ function normalizeEnrollmentId(id: string): string {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { recipientName, enrollmentId, completionDate, customCertificateId, winnerRank } = body;
+    const { recipientName, enrollmentId, completionDate, customCertificateId, winnerRank, description } = body;
 
     if (!recipientName || !enrollmentId || !completionDate) {
       return NextResponse.json(
@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
       collaborators: ["Microsoft Learn Student Ambassadors", "GitHub"],
       completion_date: completionDateISO,
       completionDate: completionDateISO,
+      description: description || undefined,
       status: "VALID",
       pdf_url: pdfUrlValue,
       pdfUrl: pdfUrlValue,

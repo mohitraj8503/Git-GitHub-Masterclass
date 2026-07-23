@@ -54,27 +54,30 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Fallback to local data/certificates.json
-  if (!data) {
-    const certsJsonPath = path.join(process.cwd(), "data", "certificates.json");
-    if (fs.existsSync(certsJsonPath)) {
-      try {
-        const certsList: any[] = JSON.parse(
-          fs.readFileSync(certsJsonPath, "utf8")
-        );
-        data = certsList.find(
-          (c) =>
-            c.certificate_id === normalized ||
-            c.certificateId === normalized ||
-            c.rawEnrollmentId === rawIdPart ||
-            (c.enrollment_id &&
-              c.enrollment_id.toUpperCase().replace(/[^A-Z0-9]/g, "") ===
-                rawIdPart)
-        );
-      } catch (e) {
-        console.error("[verify] Error reading fallback certificates.json:", e);
-      }
+  // Load local JSON description if present
+  let localRecord: any = null;
+  const certsJsonPath = path.join(process.cwd(), "data", "certificates.json");
+  if (fs.existsSync(certsJsonPath)) {
+    try {
+      const certsList: any[] = JSON.parse(
+        fs.readFileSync(certsJsonPath, "utf8")
+      );
+      localRecord = certsList.find(
+        (c) =>
+          c.certificate_id === normalized ||
+          c.certificateId === normalized ||
+          c.rawEnrollmentId === rawIdPart ||
+          (c.enrollment_id &&
+            c.enrollment_id.toUpperCase().replace(/[^A-Z0-9]/g, "") ===
+              rawIdPart)
+      );
+    } catch (e) {
+      console.error("[verify] Error reading local certificates for description:", e);
     }
+  }
+
+  if (!data) {
+    data = localRecord;
   }
 
   if (!data) {
@@ -130,6 +133,7 @@ export async function GET(req: NextRequest) {
           issuedAt,
           status: certStatus,
           winnerRank: winnerRank || undefined,
+          description: data.description || localRecord?.description || undefined,
         },
       },
       { status: 200 }
@@ -148,6 +152,7 @@ export async function GET(req: NextRequest) {
       issuedAt,
       status: certStatus,
       winnerRank: winnerRank || undefined,
+      description: data.description || localRecord?.description || undefined,
     },
   });
 }

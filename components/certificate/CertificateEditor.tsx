@@ -76,6 +76,7 @@ export const CertificateEditor: React.FC<CertificateEditorProps> = ({
           completionDate: data.completionDate,
           customCertificateId: data.certificateId || undefined,
           winnerRank: data.winnerRank || undefined,
+          description: data.description,
         }),
       });
 
