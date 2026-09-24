@@ -102,7 +102,9 @@ export async function awardXp(
         .select("session_day")
         .eq("student_id", await resolveRegId(enroll));
 
-      const daysAttended = (attLogs || []).map(a => Number(a.session_day));
+      const daysAttended = (attLogs || []).map((a: { session_day: number | string }) =>
+  Number(a.session_day)
+);
       const attendanceCount = daysAttended.length;
 
       // First attendance achievement
