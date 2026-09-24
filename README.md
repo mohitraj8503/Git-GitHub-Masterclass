@@ -93,3 +93,7 @@ Deploy easily for free on **Vercel**:
 
 ---
 *Organized by Microsoft Learn Student Ambassador · Arka Jain University*
+
+---
+
+Built by [Mohit Raj](https://github.com/mohitraj8503) — Technical Team Lead @ [Tech Tomorrow](https://techtomorrow.in)
